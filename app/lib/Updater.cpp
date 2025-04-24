@@ -202,7 +202,9 @@ void Updater::display_update_dialog(bool is_required) {
                 std::cout << "Opening download URL: " << update_info.value().download_url << std::endl;
             }
 
-            gtk_widget_destroy(dialog);
+            if (GTK_IS_WIDGET(dialog)) {
+                gtk_widget_destroy(dialog);
+            }
 
             if (is_required) {
                 exit(EXIT_SUCCESS);
