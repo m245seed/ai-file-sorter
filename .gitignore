@@ -46,6 +46,7 @@ encryption.ini
 *.app
 main
 obfuscate_encrypt
+bin/
 
 # Scripts
 reset_key_4_github.sh
