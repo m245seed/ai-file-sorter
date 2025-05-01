@@ -15,6 +15,9 @@ public:
     static std::vector<unsigned char> hex_to_vector(const std::string &hex);
     static const char* to_cstr(const std::u8string& u8str);
     static void ensure_directory_exists(const std::string &dir);
+    static bool is_os_windows();
+    static bool is_os_macos();
+    static bool is_os_linux();
 };
 
 #endif

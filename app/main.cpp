@@ -7,6 +7,7 @@
 #include <locale.h>
 #include <libintl.h>
 #include <iostream>
+#include <curl/curl.h>
 extern GResource *resources_get_resource();
 
 
@@ -26,6 +27,7 @@ int main(int argc, char **argv) {
     if (!initialize_loggers()) {
         return EXIT_FAILURE;
     }
+    curl_global_init(CURL_GLOBAL_DEFAULT);
 
     #ifdef _WIN32
         _putenv("GSETTINGS_SCHEMA_DIR=schemas");

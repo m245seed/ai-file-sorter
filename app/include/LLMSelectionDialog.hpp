@@ -3,6 +3,7 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include "LLMDownloader.hpp"
 
 class LLMSelectionDialog {
 public:
@@ -20,7 +21,7 @@ private:
     GtkWidget *local_llm_button;
     GtkWidget *download_button;
     GtkWidget *progress_bar;
-    GtkWidget *continue_button;
+    // GtkWidget *continue_button;
 
     std::unique_ptr<LLMDownloader> downloader;
     std::thread download_thread;
@@ -29,6 +30,6 @@ private:
 
     void on_selection_changed(GtkWidget *widget, gpointer data);
     void on_download_button_clicked(GtkWidget *widget, gpointer data);
-    void update_progress();
+    void update_progress(double fraction);
     void on_download_complete();
 };

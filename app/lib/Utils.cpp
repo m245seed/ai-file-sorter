@@ -82,3 +82,30 @@ void Utils::ensure_directory_exists(const std::string &dir)
         throw;
     }
 }
+
+
+bool Utils::is_os_windows() {
+#if defined(_WIN32)
+    return true;
+#else
+    return false;
+#endif
+}
+
+    
+bool Utils::is_os_macos() {
+#if defined(__APPLE__)
+    return true;
+#else
+    return false;
+#endif
+}
+
+    
+bool Utils::is_os_linux() {
+#if defined(__linux__)
+    return true;
+#else
+    return false;
+#endif
+}

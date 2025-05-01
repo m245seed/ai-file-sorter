@@ -2,7 +2,8 @@
 #include "LLMSelectionDialog.hpp"
 
 
-void LLMSelectionDialog::on_llm_radio_toggled(GtkWidget *widget, gpointer data) {
+void LLMSelectionDialog::on_llm_radio_toggled(GtkWidget *widget, gpointer data)
+{
     LLMSelectionDialog *dlg = static_cast<LLMSelectionDialog*>(data);
     bool is_local = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dlg->local_llm_button));
 
@@ -10,7 +11,8 @@ void LLMSelectionDialog::on_llm_radio_toggled(GtkWidget *widget, gpointer data) 
 }
 
 
-LLMSelectionDialog::LLMSelectionDialog() {
+LLMSelectionDialog::LLMSelectionDialog()
+{
     dialog = gtk_dialog_new_with_buttons("Choose LLM Mode",
                                          NULL,
                                          GTK_DIALOG_MODAL,
@@ -62,15 +64,13 @@ LLMSelectionDialog::LLMSelectionDialog() {
             GTK_STYLE_PROVIDER(css_provider),
             GTK_STYLE_PROVIDER_PRIORITY_USER);
 
+    g_object_unref(css_provider);
+
     gtk_widget_set_hexpand(progress_bar, TRUE);
     gtk_widget_set_vexpand(progress_bar, FALSE);
 
     gtk_box_pack_start(GTK_BOX(progress_container), progress_bar, TRUE, TRUE, 5);
     gtk_box_pack_start(GTK_BOX(main_box), progress_container, FALSE, FALSE, 5);
-
-    // Get OK button and disable initially
-    GtkWidget *ok_button = gtk_dialog_get_widget_for_response(GTK_DIALOG(dialog), GTK_RESPONSE_OK);
-    gtk_widget_set_sensitive(ok_button, FALSE);
 
     // Signals
     g_signal_connect(remote_llm_button, "toggled", G_CALLBACK(on_llm_radio_toggled), this);
@@ -91,6 +91,7 @@ int LLMSelectionDialog::run() {
     return gtk_dialog_run(GTK_DIALOG(dialog));
 }
 
+
 GtkWidget* LLMSelectionDialog::get_widget() {
     return dialog;
 }
@@ -99,10 +100,8 @@ GtkWidget* LLMSelectionDialog::get_widget() {
 void LLMSelectionDialog::on_selection_changed(GtkWidget *widget, gpointer data) {
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(local_llm_button))) {
         gtk_widget_set_sensitive(download_button, TRUE);
-        gtk_widget_set_sensitive(continue_button, FALSE);
     } else {
         gtk_widget_set_sensitive(download_button, FALSE);
-        gtk_widget_set_sensitive(continue_button, TRUE);
     }
 }
 
@@ -121,11 +120,12 @@ void LLMSelectionDialog::on_download_button_clicked(GtkWidget *widget, gpointer 
         // progress callback
         [this](double progress) {
             g_idle_add([](gpointer user_data) -> gboolean {
-                auto *dlg = static_cast<LLMSelectionDialog *>(user_data);
-                dlg->update_progress();
+                auto *wrapper = static_cast<std::pair<LLMSelectionDialog*, double> *>(user_data);
+                wrapper->first->update_progress(wrapper->second);
+                delete wrapper;
                 return FALSE;
-            }, this);
-        },
+            }, new std::pair<LLMSelectionDialog*, double>(this, progress));            
+        },        
         // on complete
         [this]() {
             {
@@ -142,15 +142,16 @@ void LLMSelectionDialog::on_download_button_clicked(GtkWidget *widget, gpointer 
 }
 
 
-void LLMSelectionDialog::update_progress() {
-    gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), 1.0);
-    gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), "Downloading... Done!");
+void LLMSelectionDialog::update_progress(double fraction) {
+    gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), fraction);
 }
+
 
 
 void LLMSelectionDialog::on_download_complete() {
     gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), "Download complete!");
-    gtk_widget_set_sensitive(continue_button, TRUE);
+    update_progress(1.0);
+    // gtk_widget_set_sensitive(continue_button, TRUE);
 }
 
 

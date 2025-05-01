@@ -45,6 +45,8 @@ endif
 # Compiler and flags
 CXX = g++
 CXXFLAGS += -std=c++20 -Wall $(shell pkg-config --cflags gtkmm-3.0)
+CXXFLAGS += -g -O0
+
 LDFLAGS += $(shell pkg-config --libs gtkmm-3.0)
 INCLUDE_DIRS = -I./include
 
