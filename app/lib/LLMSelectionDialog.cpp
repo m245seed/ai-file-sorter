@@ -1,5 +1,6 @@
 #include "LLMDownloader.hpp"
 #include "LLMSelectionDialog.hpp"
+#include <iostream>
 
 
 void LLMSelectionDialog::on_llm_radio_toggled(GtkWidget *widget, gpointer data)
@@ -8,6 +9,13 @@ void LLMSelectionDialog::on_llm_radio_toggled(GtkWidget *widget, gpointer data)
     bool is_local = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dlg->local_llm_button));
 
     gtk_widget_set_sensitive(dlg->download_button, is_local);
+
+    GtkWidget *ok_btn = gtk_dialog_get_widget_for_response(GTK_DIALOG(dlg->dialog), GTK_RESPONSE_OK);
+
+    LLMDownloader::DownloadStatus status = dlg->downloader->get_download_status();
+
+    bool enable_ok = !is_local || status == LLMDownloader::DownloadStatus::Complete;
+    gtk_widget_set_sensitive(ok_btn, enable_ok);
 }
 
 
@@ -40,9 +48,27 @@ LLMSelectionDialog::LLMSelectionDialog()
     gtk_box_pack_start(GTK_BOX(main_box), radio_box, FALSE, FALSE, 5);
 
     // Download button
+    downloader = std::make_unique<LLMDownloader>();
     GtkWidget *button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_set_halign(button_box, GTK_ALIGN_CENTER);
+    
     download_button = gtk_button_new_with_label("Download");
+    bool download_complete = false;
+
+    switch (downloader->get_download_status()) {
+        case LLMDownloader::DownloadStatus::Complete:
+            download_complete = true;
+            break;
+        case LLMDownloader::DownloadStatus::InProgress:
+            download_button = gtk_button_new_with_label("Resume download");
+            gtk_widget_set_sensitive(download_button, FALSE);
+            break;
+        case LLMDownloader::DownloadStatus::NotStarted:
+            download_button = gtk_button_new_with_label("Download");
+            gtk_widget_set_sensitive(download_button, FALSE);
+            break;
+    }
+
     gtk_widget_set_sensitive(download_button, FALSE);
     gtk_box_pack_start(GTK_BOX(button_box), download_button, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(main_box), button_box, FALSE, FALSE, 5);
@@ -54,6 +80,7 @@ LLMSelectionDialog::LLMSelectionDialog()
     progress_bar = gtk_progress_bar_new();
     gtk_widget_set_size_request(progress_bar, 350, -1);
     gtk_widget_set_name(progress_bar, "custom-progressbar");
+    gtk_progress_bar_set_show_text(GTK_PROGRESS_BAR(progress_bar), TRUE);
 
     // CSS for more consistent height
     GtkCssProvider *css_provider = gtk_css_provider_new();
@@ -84,20 +111,28 @@ LLMSelectionDialog::LLMSelectionDialog()
     GtkWidget *ok_btn = gtk_dialog_get_widget_for_response(GTK_DIALOG(this->dialog), GTK_RESPONSE_OK);
     gtk_widget_set_sensitive(ok_btn, TRUE);
     gtk_widget_show_all(dialog);
+    
+    if (download_complete) {
+        gtk_widget_hide(download_button);
+        gtk_widget_hide(progress_bar);
+    }    
 }
 
 
-int LLMSelectionDialog::run() {
+int LLMSelectionDialog::run()
+{
     return gtk_dialog_run(GTK_DIALOG(dialog));
 }
 
 
-GtkWidget* LLMSelectionDialog::get_widget() {
+GtkWidget* LLMSelectionDialog::get_widget()
+{
     return dialog;
 }
 
 
-void LLMSelectionDialog::on_selection_changed(GtkWidget *widget, gpointer data) {
+void LLMSelectionDialog::on_selection_changed(GtkWidget *widget, gpointer data)
+{
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(local_llm_button))) {
         gtk_widget_set_sensitive(download_button, TRUE);
     } else {
@@ -106,18 +141,29 @@ void LLMSelectionDialog::on_selection_changed(GtkWidget *widget, gpointer data) 
 }
 
 
-void LLMSelectionDialog::on_download_button_clicked(GtkWidget *widget, gpointer data) {
-    if (is_downloading) return;
+void LLMSelectionDialog::on_download_button_clicked(GtkWidget *widget, gpointer data)
+{
+    GtkWidget *cancel_btn = gtk_dialog_get_widget_for_response(GTK_DIALOG(this->dialog), GTK_RESPONSE_CANCEL);
+    if (is_downloading) {
+        downloader->cancel_download();
+        is_downloading = false;
+        gtk_button_set_label(GTK_BUTTON(download_button), "Resume download");
+        gtk_widget_set_sensitive(cancel_btn, TRUE);
+        gtk_window_set_deletable(GTK_WINDOW(dialog), TRUE);
+        return;
+    }
 
+    // Start or resume download
+    gtk_widget_set_sensitive(cancel_btn, FALSE);
+    gtk_window_set_deletable(GTK_WINDOW(dialog), FALSE);
     is_downloading = true;
-    gtk_widget_set_sensitive(download_button, FALSE);
+    gtk_widget_set_sensitive(download_button, TRUE);
+    gtk_button_set_label(GTK_BUTTON(download_button), "Pause download");
+
     gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), 0.0);
     gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), "Starting download...");
 
-    downloader = std::make_unique<LLMDownloader>();
-
     downloader->start_download(
-        // progress callback
         [this](double progress) {
             g_idle_add([](gpointer user_data) -> gboolean {
                 auto *wrapper = static_cast<std::pair<LLMSelectionDialog*, double> *>(user_data);
@@ -125,8 +171,7 @@ void LLMSelectionDialog::on_download_button_clicked(GtkWidget *widget, gpointer 
                 delete wrapper;
                 return FALSE;
             }, new std::pair<LLMSelectionDialog*, double>(this, progress));            
-        },        
-        // on complete
+        },
         [this]() {
             {
                 std::lock_guard<std::mutex> lock(download_mutex);
@@ -137,21 +182,45 @@ void LLMSelectionDialog::on_download_button_clicked(GtkWidget *widget, gpointer 
                 dlg->on_download_complete();
                 return FALSE;
             }, this);
+        },
+        [this](const std::string& status) {
+            g_idle_add([](gpointer user_data) -> gboolean {
+                auto *wrapper = static_cast<std::pair<LLMSelectionDialog*, std::string> *>(user_data);
+                wrapper->first->update_progress_text(wrapper->second);
+                delete wrapper;
+                return FALSE;
+            }, new std::pair<LLMSelectionDialog*, std::string>(this, status));
         }
     );
 }
 
 
-void LLMSelectionDialog::update_progress(double fraction) {
+void LLMSelectionDialog::update_progress(double fraction)
+{
     gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), fraction);
 }
 
 
 
-void LLMSelectionDialog::on_download_complete() {
-    gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), "Download complete!");
-    update_progress(1.0);
-    // gtk_widget_set_sensitive(continue_button, TRUE);
+void LLMSelectionDialog::on_download_complete()
+{
+    g_idle_add_full(G_PRIORITY_DEFAULT, [](gpointer data) -> gboolean {
+        auto* self = static_cast<LLMSelectionDialog*>(data);
+        gtk_progress_bar_set_text(GTK_PROGRESS_BAR(self->progress_bar), "Download complete!");
+        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(self->progress_bar), 1.0);
+        gtk_widget_hide(self->download_button);
+        gtk_widget_hide(self->progress_bar);
+    
+        GtkWidget *ok_btn = gtk_dialog_get_widget_for_response(GTK_DIALOG(self->dialog), GTK_RESPONSE_OK);
+        gtk_widget_set_sensitive(ok_btn, TRUE);
+        return G_SOURCE_REMOVE;
+    }, this, nullptr);
+}
+
+
+void LLMSelectionDialog::update_progress_text(const std::string& text)
+{
+    gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), text.c_str());
 }
 
 

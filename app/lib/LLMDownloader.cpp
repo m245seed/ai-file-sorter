@@ -16,8 +16,7 @@ LLMDownloader::LLMDownloader()
         }
         return std::string(env_url);
     }()),
-      destination_dir(get_default_llm_destination()),
-      stop_requested(false)
+      destination_dir(get_default_llm_destination())
 {
     auto last_slash = url.find_last_of('/');
     if (last_slash == std::string::npos || last_slash == url.length() - 1) {
@@ -33,10 +32,15 @@ LLMDownloader::LLMDownloader()
     parse_headers();
 }
 
+
 size_t LLMDownloader::write_data(void* ptr, size_t size, size_t nmemb, FILE* stream) {
-    // size_t bytes = size * nmemb;
-    // std::cout << "[write_data] Writing " << bytes << " bytes to file" << std::endl;
     return fwrite(ptr, size, nmemb, stream);
+}
+
+
+size_t LLMDownloader::discard_callback(char* ptr, size_t size, size_t nmemb, void* userdata)
+{
+    return size * nmemb;
 }
 
 
@@ -49,18 +53,21 @@ void LLMDownloader::parse_headers()
 
     std::lock_guard<std::mutex> lock(mutex);
     curl_headers.clear();
-    real_content_length = 0;
     resumable = false;
+    real_content_length = 0;
 
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);  // HEAD request
-    curl_easy_setopt(curl, CURLOPT_HEADER, 1L);  // Get headers only
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
-    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &LLMDownloader::header_callback);
-    curl_easy_setopt(curl, CURLOPT_HEADERDATA, this);
-
+    setup_header_curl_options(curl);
+        
     CURLcode res = curl_easy_perform(curl);
+
+    double cl;
+    if (curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &cl) == CURLE_OK && cl > 0) {
+        real_content_length = static_cast<curl_off_t>(cl);
+    }
+
+    // printf("[HEAD] header callback size: %lld, curl_getinfo size: %.0f\n",
+        // real_content_length, cl); 
+
     curl_easy_cleanup(curl);
 
     if (res != CURLE_OK) {
@@ -74,20 +81,26 @@ int LLMDownloader::progress_func(void* clientp, curl_off_t dltotal, curl_off_t d
 {
     auto* self = static_cast<LLMDownloader*>(clientp);
 
-    if (self->stop_requested) {
-        return 1; // non-zero return code will make curl abort
+    if (self->cancel_requested) {
+        return 1;
     }
 
-    curl_off_t effective_total = dltotal;
-    if (effective_total == 0 && self->real_content_length > 0) {
-        effective_total = self->real_content_length;
+    if (dltotal > 0 && self->on_status_text) {
+        std::string msg = "Downloaded " + format_size(self->resume_offset + dlnow) + " / " + format_size(self->real_content_length);
+        self->on_status_text(msg);
     }
 
-    if (effective_total == 0) {
+    curl_off_t total_size = self->real_content_length;
+
+    if (total_size == 0) {
         return 0;
     }
 
-    double progress = static_cast<double>(dlnow) / static_cast<double>(effective_total);
+    double raw_progress = static_cast<double>(self->resume_offset + dlnow) / static_cast<double>(total_size);
+    double clamped_progress = std::min(raw_progress, 1.0);
+
+    // printf("Dlnow: %ld, Resume offset: %ld, Total size: %ld, Progress: %.2f\n",
+    //     dlnow, self->resume_offset, total_size, clamped_progress);
 
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - self->last_progress_update);
@@ -95,9 +108,9 @@ int LLMDownloader::progress_func(void* clientp, curl_off_t dltotal, curl_off_t d
     if (elapsed.count() > 100) {
         self->last_progress_update = now;
 
-        Glib::signal_idle().connect_once([self, progress]() {
+        Glib::signal_idle().connect_once([self, clamped_progress]() {
             if (self->progress_callback) {
-                self->progress_callback(progress);
+                self->progress_callback(clamped_progress);
             }
         });
     }
@@ -128,14 +141,28 @@ size_t LLMDownloader::header_callback(char* buffer, size_t size, size_t nitems, 
         // Store all headers
         self->curl_headers[key] = value;
 
-        if (key == "content-length") {
-            try {
-                self->real_content_length = std::stoll(value);
-                // std::cout << "[header_callback] Got Content-Length: " << self->real_content_length << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "[header_callback] Failed to parse Content-Length: " << e.what() << std::endl;
-            }            
-        }
+        // if (key == "content-range") {
+        //     // Example value: "bytes 1200000-4999999/5000000"
+        //     size_t slash_pos = value.find('/');
+        //     if (slash_pos != std::string::npos) {
+        //         std::string total_size_str = value.substr(slash_pos + 1);
+        //         g_print("total_size_str: %s\n", total_size_str.c_str());
+        //         try {
+        //             self->real_content_length = std::stoll(total_size_str);
+        //         } catch (const std::exception& e) {
+        //             // fallback or log
+        //         }
+        //     }
+        // }
+
+        // if (key == "content-length") {
+        //     try {
+        //         self->real_content_length = std::stoll(value);
+        //         // std::cout << "[header_callback] Got Content-Length: " << self->real_content_length << std::endl;
+        //     } catch (const std::exception& e) {
+        //         // std::cerr << "[header_callback] Failed to parse Content-Length: " << e.what() << std::endl;
+        //     }            
+        // }
     }
 
     return total_size;
@@ -143,93 +170,147 @@ size_t LLMDownloader::header_callback(char* buffer, size_t size, size_t nitems, 
 
 
 void LLMDownloader::start_download(std::function<void(double)> progress_cb,
-                                   std::function<void()> on_complete_cb)
+                                   std::function<void()> on_complete_cb,
+                                   std::function<void(const std::string&)> on_status_text)
 {
-    progress_callback = std::move(progress_cb);
-    on_download_complete = std::move(on_complete_cb);
+    if (download_thread.joinable()) {
+        download_thread.join();
+    }
+
+    cancel_requested = false;
+    this->progress_callback = std::move(progress_cb);
+    this->on_download_complete = std::move(on_complete_cb);
+    this->on_status_text = std::move(on_status_text);
 
     download_thread = std::thread([this]() {
-        CURL* curl = curl_easy_init();
-        if (!curl) {
-            throw std::runtime_error("Failed to initialize curl");
-        }
-
-        FILE* fp = nullptr;
-        long resume_from = 0;
-
-        // === Handle resumable state ===
-        if (is_download_resumable()) {
-            FILE* temp_fp = fopen(download_destination.c_str(), "rb");
-            if (temp_fp) {
-                fseek(temp_fp, 0, SEEK_END);
-                resume_from = ftell(temp_fp);
-                fclose(temp_fp);
-                std::cout << "[start_download] Resuming from byte: " << resume_from << std::endl;
-
-                if (resume_from >= real_content_length) {
-                    // std::cout << "File already fully downloaded. Skipping download.\n";
-                    curl_easy_cleanup(curl);  // cleanup before early return
-                    Glib::signal_idle().connect_once([this]() {
-                        if (on_download_complete) {
-                            on_download_complete();
-                        }
-                    });
-                    return;
-                }
-            }
-        }
-
-        // === Open file for writing/resuming ===
-        fp = fopen(download_destination.c_str(), resume_from > 0 ? "ab" : "wb");
-        if (!fp) {
-            curl_easy_cleanup(curl);
-            throw std::runtime_error("Failed to open file for writing: " + download_destination);
-        }
-
-        // === CURL options ===
-        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &LLMDownloader::header_callback);
-        curl_easy_setopt(curl, CURLOPT_HEADERDATA, this);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &LLMDownloader::write_data);
-        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-        curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, &LLMDownloader::progress_func);
-        curl_easy_setopt(curl, CURLOPT_XFERINFODATA, this);
-        curl_easy_setopt(curl, CURLOPT_RESUME_FROM, resume_from);
-        curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
-        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-        CURLcode res = curl_easy_perform(curl);
-
-        // === Cleanup (always do these if they were set) ===
-        if (fp) fclose(fp);
-        if (curl) curl_easy_cleanup(curl);
-
-        if (res != CURLE_OK) {
-            std::cerr << "[start_download] Download failed: " << curl_easy_strerror(res) << std::endl;
-        } else {
-            std::lock_guard<std::mutex> lock(mutex);
-            resumable = true;
-            Glib::signal_idle().connect_once([this]() {
-                if (on_download_complete) {
-                    on_download_complete();
-                }
-            });
+        try {
+            perform_download();
+        } catch (const std::exception& ex) {
+            // std::cerr << "[start_download] Exception: " << ex.what() << std::endl;
         }
     });
-
-    // download_thread.detach();
 }
 
 
-// void LLMDownloader::try_resume_download()
-// {
-//     start_download(progress_callback, on_download_complete);
-// }
+void LLMDownloader::perform_download()
+{
+    CURL* curl = curl_easy_init();
+    if (!curl) throw std::runtime_error("Failed to initialize curl");
+
+    long resume_from = determine_resume_offset();
+    resume_offset = resume_from;
+
+    if (resume_from >= real_content_length) {
+        notify_download_complete();
+        curl_easy_cleanup(curl);
+        return;
+    }
+
+    FILE* fp = open_output_file(resume_from);
+    if (!fp) {
+        curl_easy_cleanup(curl);
+        throw std::runtime_error("Failed to open file: " + download_destination);
+    }
+
+    setup_download_curl_options(curl, fp, resume_offset);
+    CURLcode res = curl_easy_perform(curl);
+
+    fclose(fp);
+    curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK) {
+        // std::cerr << "[perform_download] Failed: " << curl_easy_strerror(res) << std::endl;
+        cancel_requested = false;
+    } else {
+        mark_download_resumable();
+        notify_download_complete();
+    }    
+}
+
+
+void LLMDownloader::mark_download_resumable()
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    resumable = true;
+}
+
+
+void LLMDownloader::notify_download_complete()
+{
+    Glib::signal_idle().connect_once([this]() {
+        if (on_download_complete) on_download_complete();
+    });
+}
+
+
+void LLMDownloader::setup_common_curl_options(CURL* curl)
+{
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
+}
+
+
+void LLMDownloader::setup_header_curl_options(CURL* curl)
+{
+    setup_common_curl_options(curl);
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+    curl_easy_setopt(curl, CURLOPT_HEADER, 1L);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &LLMDownloader::header_callback);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, this);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, discard_callback); // <-- avoids stdout
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, nullptr);
+}
+
+
+void LLMDownloader::setup_download_curl_options(CURL* curl, FILE* fp, long resume_offset)
+{
+    setup_common_curl_options(curl);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &LLMDownloader::write_data);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &LLMDownloader::header_callback);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, this);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, &LLMDownloader::progress_func);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, this);
+    curl_easy_setopt(curl, CURLOPT_RESUME_FROM, resume_offset);
+}
+
+
+long LLMDownloader::determine_resume_offset() const
+{
+    if (!is_download_resumable()) return 0;
+
+    FILE* fp = fopen(download_destination.c_str(), "rb");
+    if (!fp) return 0;
+
+    fseek(fp, 0, SEEK_END);
+    long offset = ftell(fp);
+    fclose(fp);
+    return offset;
+}
+
+
+FILE* LLMDownloader::open_output_file(long resume_offset) const
+{
+    return fopen(download_destination.c_str(), resume_offset > 0 ? "ab" : "wb");
+}
 
 
 bool LLMDownloader::is_download_resumable() const
 {
+    try {
+        if (!std::filesystem::exists(download_destination) ||
+            std::filesystem::file_size(download_destination) == 0)
+        {
+            return false;
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        // Log or handle error
+        return false;
+    }
+
     std::lock_guard<std::mutex> lock(mutex);
 
     auto it = curl_headers.find("accept-ranges");
@@ -239,6 +320,33 @@ bool LLMDownloader::is_download_resumable() const
     bool has_length = (len_it != curl_headers.end() && std::stoll(len_it->second) > 0);
 
     return ranges && has_length;
+}
+
+
+bool LLMDownloader::is_download_complete() const
+{
+    FILE* fp = fopen(download_destination.c_str(), "rb");
+    if (!fp) return false;
+
+    fseek(fp, 0, SEEK_END);
+    long size = ftell(fp);
+    fclose(fp);
+
+    return size >= real_content_length;
+}
+
+
+LLMDownloader::DownloadStatus LLMDownloader::get_download_status() const
+{
+    if (is_download_complete()) {
+        return DownloadStatus::Complete;
+    }
+
+    if (is_download_resumable()) {
+        return DownloadStatus::InProgress;
+    }
+
+    return DownloadStatus::NotStarted;
 }
 
 
@@ -261,8 +369,28 @@ std::string LLMDownloader::get_default_llm_destination() {
 }
 
 
+void LLMDownloader::cancel_download()
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    cancel_requested = true;
+}
+
+
+std::string LLMDownloader::format_size(curl_off_t bytes)
+{
+    char buffer[64];
+    if (bytes >= (1LL << 30))
+        snprintf(buffer, sizeof(buffer), "%.2f GB", bytes / (double)(1LL << 30));
+    else if (bytes >= (1LL << 20))
+        snprintf(buffer, sizeof(buffer), "%.2f MB", bytes / (double)(1LL << 20));
+    else
+        snprintf(buffer, sizeof(buffer), "%.2f KB", bytes / (double)(1LL << 10));
+    return buffer;
+}
+
+
 LLMDownloader::~LLMDownloader() {
     if (download_thread.joinable()) {
-        download_thread.join(); // Attends la fin du thread avant de détruire
+        download_thread.join();
     }
 }
