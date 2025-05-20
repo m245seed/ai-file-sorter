@@ -109,3 +109,16 @@ bool Utils::is_os_linux() {
     return false;
 #endif
 }
+
+
+std::string Utils::format_size(curl_off_t bytes)
+{
+    char buffer[64];
+    if (bytes >= (1LL << 30))
+        snprintf(buffer, sizeof(buffer), "%.2f GB", bytes / (double)(1LL << 30));
+    else if (bytes >= (1LL << 20))
+        snprintf(buffer, sizeof(buffer), "%.2f MB", bytes / (double)(1LL << 20));
+    else
+        snprintf(buffer, sizeof(buffer), "%.2f KB", bytes / (double)(1LL << 10));
+    return buffer;
+}

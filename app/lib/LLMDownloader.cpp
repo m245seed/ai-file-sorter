@@ -86,7 +86,8 @@ int LLMDownloader::progress_func(void* clientp, curl_off_t dltotal, curl_off_t d
     }
 
     if (dltotal > 0 && self->on_status_text) {
-        std::string msg = "Downloaded " + format_size(self->resume_offset + dlnow) + " / " + format_size(self->real_content_length);
+        std::string msg = "Downloaded " + Utils::format_size(self->resume_offset + dlnow) +
+            " / " + Utils::format_size(self->real_content_length);
         self->on_status_text(msg);
     }
 
@@ -373,19 +374,6 @@ void LLMDownloader::cancel_download()
 {
     std::lock_guard<std::mutex> lock(mutex);
     cancel_requested = true;
-}
-
-
-std::string LLMDownloader::format_size(curl_off_t bytes)
-{
-    char buffer[64];
-    if (bytes >= (1LL << 30))
-        snprintf(buffer, sizeof(buffer), "%.2f GB", bytes / (double)(1LL << 30));
-    else if (bytes >= (1LL << 20))
-        snprintf(buffer, sizeof(buffer), "%.2f MB", bytes / (double)(1LL << 20));
-    else
-        snprintf(buffer, sizeof(buffer), "%.2f KB", bytes / (double)(1LL << 10));
-    return buffer;
 }
 
 

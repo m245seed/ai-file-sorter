@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <curl/system.h>
 
 
 class Utils {
@@ -18,6 +19,7 @@ public:
     static bool is_os_windows();
     static bool is_os_macos();
     static bool is_os_linux();
+    static std::string format_size(curl_off_t bytes);
 };
 
 #endif
