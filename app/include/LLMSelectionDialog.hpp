@@ -38,4 +38,5 @@ private:
     void update_progress(double fraction);
     void on_download_complete();
     void update_progress_text(const std::string &text);
+    void update_file_size_label();
 };

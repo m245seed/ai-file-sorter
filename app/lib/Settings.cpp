@@ -56,7 +56,8 @@ std::string Settings::get_config_dir()
 }
 
 
-bool Settings::load() {
+bool Settings::load()
+{
     if (!config.load(config_path)) {
         sort_folder = default_sort_folder ? default_sort_folder : "/";
         return false;
@@ -72,7 +73,8 @@ bool Settings::load() {
 }
 
 
-bool Settings::save() {
+bool Settings::save()
+{
     config.setValue("Settings", "UseSubcategories", use_subcategories ? "true" : "false");
     config.setValue("Settings", "CategorizeFiles", categorize_files ? "true" : "false");
     config.setValue("Settings", "CategorizeDirectories", categorize_directories ? "true" : "false");

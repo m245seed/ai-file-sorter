@@ -1,3 +1,5 @@
+#include "DialogUtils.hpp"
+#include "ErrorMessages.hpp"
 #include "LLMDownloader.hpp"
 #include "LLMSelectionDialog.hpp"
 #include "Utils.hpp"
@@ -64,6 +66,7 @@ LLMSelectionDialog::LLMSelectionDialog()
 
     // Download button
     downloader = std::make_unique<LLMDownloader>();
+
     GtkWidget *button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_set_halign(button_box, GTK_ALIGN_CENTER);
     
@@ -111,11 +114,11 @@ LLMSelectionDialog::LLMSelectionDialog()
     gtk_label_set_selectable(GTK_LABEL(local_path_label), TRUE);
     gtk_label_set_xalign(GTK_LABEL(local_path_label), 0.0f);
 
-    std::string size_str = Utils::format_size(downloader->real_content_length);
-    gtk_label_set_text(GTK_LABEL(file_size_label),
-        ("<b>File size:</b> " + size_str).c_str());
-    gtk_label_set_use_markup(GTK_LABEL(file_size_label), TRUE);
-    gtk_label_set_xalign(GTK_LABEL(file_size_label), 0.0f);
+    if (Utils::is_network_available()) {
+        downloader->init_if_needed();
+    }
+
+    update_file_size_label();
 
     // Add labels to info box
     gtk_box_pack_start(GTK_BOX(file_info_box), remote_url_label, FALSE, FALSE, 3);
@@ -177,6 +180,15 @@ LLMSelectionDialog::LLMSelectionDialog()
 }
 
 
+void LLMSelectionDialog::update_file_size_label() {
+    std::string size_str = Utils::format_size(downloader->real_content_length);
+    gtk_label_set_text(GTK_LABEL(file_size_label),
+        ("<b>File size:</b> " + size_str).c_str());
+    gtk_label_set_use_markup(GTK_LABEL(file_size_label), TRUE);
+    gtk_label_set_xalign(GTK_LABEL(file_size_label), 0.0f);
+}
+
+
 int LLMSelectionDialog::run()
 {
     return gtk_dialog_run(GTK_DIALOG(dialog));
@@ -201,6 +213,16 @@ void LLMSelectionDialog::on_selection_changed(GtkWidget *widget, gpointer data)
 
 void LLMSelectionDialog::on_download_button_clicked(GtkWidget *widget, gpointer data)
 {
+    if (!Utils::is_network_available()) {
+        DialogUtils::show_error_dialog(GTK_WINDOW(this->dialog), ERR_NO_INTERNET_CONNECTION);
+        return;
+    }
+
+    if (!downloader->is_inited()) {
+        downloader->init_if_needed();
+        update_file_size_label();
+    }    
+
     GtkWidget *cancel_btn = gtk_dialog_get_widget_for_response(GTK_DIALOG(this->dialog), GTK_RESPONSE_CANCEL);
     if (is_downloading) {
         downloader->cancel_download();

@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <glibmm/main.h>
 #include <Utils.hpp>
+#include <DialogUtils.hpp>
+#include <ErrorMessages.hpp>
 
 
 LLMDownloader::LLMDownloader()
@@ -29,7 +31,26 @@ LLMDownloader::LLMDownloader()
 
     download_destination = (std::filesystem::path(destination_dir) / filename).string();
     last_progress_update = std::chrono::steady_clock::now();
+}
+
+
+void LLMDownloader::init_if_needed()
+{
+    if (initialized) return;
+
+    if (!Utils::is_network_available()) {
+        std::cerr << "Still no internet...\n";
+        return;
+    }
+
     parse_headers();
+    initialized = true;
+}
+
+
+bool LLMDownloader::is_inited()
+{
+    return initialized;
 }
 
 
@@ -64,9 +85,6 @@ void LLMDownloader::parse_headers()
     if (curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &cl) == CURLE_OK && cl > 0) {
         real_content_length = static_cast<curl_off_t>(cl);
     }
-
-    // printf("[HEAD] header callback size: %lld, curl_getinfo size: %.0f\n",
-        // real_content_length, cl); 
 
     curl_easy_cleanup(curl);
 
@@ -253,7 +271,7 @@ void LLMDownloader::setup_common_curl_options(CURL* curl)
 
 
 void LLMDownloader::setup_header_curl_options(CURL* curl)
-{
+{    
     setup_common_curl_options(curl);
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
     curl_easy_setopt(curl, CURLOPT_HEADER, 1L);

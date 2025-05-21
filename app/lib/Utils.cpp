@@ -118,7 +118,9 @@ std::string Utils::format_size(curl_off_t bytes)
         snprintf(buffer, sizeof(buffer), "%.2f GB", bytes / (double)(1LL << 30));
     else if (bytes >= (1LL << 20))
         snprintf(buffer, sizeof(buffer), "%.2f MB", bytes / (double)(1LL << 20));
-    else
+    else if (bytes >= (1LL << 10))
         snprintf(buffer, sizeof(buffer), "%.2f KB", bytes / (double)(1LL << 10));
+    else
+        snprintf(buffer, sizeof(buffer), "%.2f B", bytes / (double)(1LL << 10));
     return buffer;
 }

@@ -1,6 +1,7 @@
 #include "MainApp.hpp"
 #include "CategorizationSession.hpp"
 #include "CryptoManager.hpp"
+#include "DialogUtils.hpp"
 #include "ErrorMessages.hpp"
 #include "FileScanner.hpp"
 #include "LLMClient.hpp"
@@ -214,7 +215,7 @@ gboolean MainApp::update_ui_after_analysis()
     gtk_button_set_label(analyze_button, "Analyze folder");
 
     if (new_files_to_sort.empty()) {
-        show_error_dialog(ERR_NO_FILES_TO_CATEGORIZE);
+        DialogUtils::show_error_dialog(GTK_WINDOW(this->main_window), ERR_NO_FILES_TO_CATEGORIZE);
 
         if (analyze_thread.joinable()) {
             analyze_thread.join();
@@ -233,41 +234,15 @@ gboolean MainApp::update_ui_after_analysis()
 }
 
 
-void MainApp::show_error_dialog(const std::string &message) {
-    GtkWidget *dialog = gtk_dialog_new();
-    gtk_window_set_title(GTK_WINDOW(dialog), "Error");
-    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
-    gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(this->main_window));
-
-    GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-    GtkWidget *label = gtk_label_new(message.c_str());
-    gtk_widget_set_margin_top(label, 10);
-    gtk_widget_set_margin_bottom(label, 10);
-    gtk_widget_set_margin_start(label, 20);
-    gtk_widget_set_margin_end(label, 20);
-    gtk_box_pack_start(GTK_BOX(content_area), label, TRUE, TRUE, 0);
-
-    GtkWidget *ok_button = gtk_button_new_with_label("OK");
-    gtk_widget_set_hexpand(ok_button, TRUE);
-    gtk_widget_set_halign(ok_button, GTK_ALIGN_CENTER);
-    g_signal_connect(ok_button, "clicked", G_CALLBACK(+[](GtkWidget *widget, gpointer dialog) {
-        gtk_widget_destroy(GTK_WIDGET(dialog));
-    }), dialog);
-    gtk_box_pack_start(GTK_BOX(content_area), ok_button, FALSE, FALSE, 0);
-
-    gtk_widget_show_all(dialog);
-}
-
-
 void MainApp::perform_analysis()
 {
     std::string directory_path = get_folder_path();
     if (directory_path.empty()) {
         g_idle_add([](gpointer user_data) -> gboolean {
             MainApp* app = static_cast<MainApp*>(user_data);
-            app->show_error_dialog("No folder path provided.");
+            DialogUtils::show_error_dialog(GTK_WINDOW(app->main_window), "No folder path provided.");
             return G_SOURCE_REMOVE;
-        }, this);
+        }, this);        
         return;
     }
 
@@ -380,7 +355,7 @@ void MainApp::perform_analysis()
             return app->update_ui_after_analysis();
         }, this);
     } catch (const std::exception& ex) {
-        show_error_dialog("Analysis Error: " + std::string(ex.what()));
+        DialogUtils::show_error_dialog(GTK_WINDOW(this->main_window), "Analysis Error: " + std::string(ex.what()));
         g_printerr("Exception during analysis: %s\n", ex.what());
     }
 }
@@ -410,12 +385,12 @@ void MainApp::on_analyze_button_clicked(GtkButton *button, gpointer main_app_ins
 
     const char *folder_path = gtk_entry_get_text(app->path_entry);
     if (!Utils::is_valid_directory(folder_path)) {
-        app->show_error_dialog(ERR_INVALID_PATH);
+        DialogUtils::show_error_dialog(GTK_WINDOW(app->main_window), ERR_INVALID_PATH);
         return;
     }
 
     if (!Utils::is_network_available()) {
-        app->show_error_dialog(ERR_NO_INTERNET_CONNECTION);
+        DialogUtils::show_error_dialog(GTK_WINDOW(app->main_window), ERR_NO_INTERNET_CONNECTION);
         return;
     }
 
@@ -568,7 +543,7 @@ MainApp::categorize_files(const std::vector<FileEntry>& items)
 
         } catch (const std::exception& ex) {
             std::string error_message = "Error categorizing file \"" + name + "\": " + ex.what();
-            show_error_dialog(error_message);
+            DialogUtils::show_error_dialog(GTK_WINDOW(this->main_window), error_message);
             core_logger->error("%s\n", error_message.c_str());
             break;
         }
@@ -768,7 +743,7 @@ void MainApp::on_path_entry_activate(GtkEntry *path_entry, gpointer user_data)
     if (g_file_test(folder_path, G_FILE_TEST_IS_DIR)) {
         gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(app->file_chooser), folder_path);
     } else {
-        app->show_error_dialog(ERR_INVALID_PATH);
+        DialogUtils::show_error_dialog(GTK_WINDOW(app->main_window), ERR_INVALID_PATH);
     }
 }
 

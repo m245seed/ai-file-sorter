@@ -41,17 +41,15 @@ int main(int argc, char **argv) {
         std::string locale_path = Utils::get_executable_path() + "/locale";
         bindtextdomain("net.quicknode.AIFileSorter", locale_path.c_str());
 
-        // Classic GTK3 initialization
         gtk_init(&argc, &argv);
 
-        // Show LLM Selection Dialog first
         LLMSelectionDialog llm_dialog;
         if (llm_dialog.run() != GTK_RESPONSE_OK) {
-            return EXIT_SUCCESS; // User canceled, exit app
+            return EXIT_SUCCESS;
         }
-        gtk_widget_destroy(llm_dialog.get_widget()); // Proper cleanup
 
-        // If dialog was confirmed, launch the main application
+        gtk_widget_destroy(llm_dialog.get_widget());
+
         MainApp* main_app = new MainApp(argc, argv);
         main_app->run();
         main_app->shutdown();
