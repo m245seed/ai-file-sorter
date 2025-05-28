@@ -3,6 +3,12 @@
 
 #include <string>
 
+enum class LLMChoice {
+    Unset,
+    Remote,
+    Local
+};
+
 enum class FileType {File, Directory};
 
 struct CategorizedFile {

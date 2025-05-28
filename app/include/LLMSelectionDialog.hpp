@@ -1,15 +1,18 @@
 #pragma once
+#include "LLMDownloader.hpp"
+#include "Types.hpp"
 #include <gtk/gtk.h>
 #include <atomic>
 #include <mutex>
 #include <thread>
-#include "LLMDownloader.hpp"
+
 
 class LLMSelectionDialog {
 public:
     static void on_llm_radio_toggled(GtkWidget *widget, gpointer data);
-    LLMSelectionDialog();
+    LLMSelectionDialog(Settings& settings);
     ~LLMSelectionDialog();
+    LLMChoice get_selected_llm_choice() const;
     int run();
     GtkWidget* get_widget(); 
 
@@ -39,4 +42,6 @@ private:
     void on_download_complete();
     void update_progress_text(const std::string &text);
     void update_file_size_label();
+
+    Settings& settings;
 };

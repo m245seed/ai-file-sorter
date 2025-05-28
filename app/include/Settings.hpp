@@ -2,6 +2,7 @@
 #define SETTINGS_HPP
 
 #include <IniConfig.hpp>
+#include <Types.hpp>
 #include <string>
 #include <filesystem>
 
@@ -13,6 +14,10 @@ public:
 
     bool load();
     bool save();
+
+    LLMChoice get_llm_choice() const;
+    void set_llm_choice(LLMChoice choice);
+    bool is_llm_chosen() const;
 
     bool get_use_subcategories() const;
     void set_use_subcategories(bool value);
@@ -37,6 +42,7 @@ private:
     std::filesystem::path config_dir;
     IniConfig config;
 
+    LLMChoice llm_choice = LLMChoice::Unset;
     bool use_subcategories;
     bool categorize_files;
     bool categorize_directories;

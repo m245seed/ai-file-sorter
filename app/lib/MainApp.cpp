@@ -35,9 +35,9 @@
 extern GResource *resources_get_resource();
 
 
-MainApp::MainApp(int argc, char **argv)
+MainApp::MainApp(int argc, char **argv, Settings& settings)
     : builder(nullptr),
-      settings(),
+      settings(settings),
       db_manager(settings.get_config_dir()),
       categorization_dialog(nullptr),
       use_subcategories_checkbox(nullptr), 
@@ -88,13 +88,15 @@ void MainApp::load_settings() {
 }
 
 
-void MainApp::save_settings() {
+void MainApp::save_settings()
+{
     sync_ui_to_settings();
     settings.save();
 }
 
 
-void MainApp::initialize_checkboxes() {
+void MainApp::initialize_checkboxes()
+{
     use_subcategories_checkbox = GTK_CHECK_BUTTON(gtk_builder_get_object(builder, "use_subcategories_checkbox"));
     categorize_files_checkbox = GTK_CHECK_BUTTON(gtk_builder_get_object(builder, "categorize_files_checkbox"));
     categorize_directories_checkbox = GTK_CHECK_BUTTON(gtk_builder_get_object(builder, "categorize_directories_checkbox"));
@@ -120,7 +122,8 @@ void MainApp::initialize_checkboxes() {
 }
 
 
-void MainApp::sync_ui_to_settings() {
+void MainApp::sync_ui_to_settings()
+{
     const char* entry_text = gtk_entry_get_text(path_entry);
     settings.set_use_subcategories(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(use_subcategories_checkbox)));
     settings.set_categorize_files(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(categorize_files_checkbox)));
@@ -129,7 +132,8 @@ void MainApp::sync_ui_to_settings() {
 }
 
 
-void MainApp::sync_settings_to_ui() {
+void MainApp::sync_settings_to_ui()
+{
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(use_subcategories_checkbox), settings.get_use_subcategories());
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(categorize_files_checkbox), settings.get_categorize_files());
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(categorize_directories_checkbox), settings.get_categorize_directories());
@@ -761,7 +765,8 @@ void MainApp::on_activate()
 }
 
 
-void MainApp::initialize_builder() {
+void MainApp::initialize_builder()
+{
     builder = gtk_builder_new();
     if (!builder) {
         ui_logger->critical("Failed to initialize GtkBuilder.");
@@ -777,7 +782,8 @@ void MainApp::initialize_builder() {
 }
 
 
-void MainApp::setup_main_window() {
+void MainApp::setup_main_window()
+{
     main_window = GTK_WIDGET(gtk_builder_get_object(builder, "main_window"));
     if (!main_window) {
         ui_logger->critical("Failed to load 'main_window'.");
@@ -790,7 +796,8 @@ void MainApp::setup_main_window() {
 }
 
 
-void MainApp::initialize_ui_components() {
+void MainApp::initialize_ui_components()
+{
     initialize_checkboxes();
     gboolean show_subcategory_col = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(use_subcategories_checkbox));
     categorization_dialog = new CategorizationDialog(&db_manager, show_subcategory_col);
@@ -800,7 +807,8 @@ void MainApp::initialize_ui_components() {
 }
 
 
-void MainApp::start_updater() {
+void MainApp::start_updater()
+{
     Updater* updater = new Updater(settings);
     updater->begin();
 }
@@ -827,12 +835,14 @@ void MainApp::set_app_icon()
 }
 
 
-void MainApp::on_about_activate() {
+void MainApp::on_about_activate()
+{
     MainAppHelpActions::show_about(GTK_WINDOW(main_window));
 }
 
 
-void MainApp::on_donate_activate() {
+void MainApp::on_donate_activate()
+{
     const std::string donation_url = "https://filesorter.app/donate";
 
     #ifdef __linux__
@@ -853,7 +863,8 @@ void MainApp::on_donate_activate() {
 }
 
 
-void MainApp::connect_ui_signals() {
+void MainApp::connect_ui_signals()
+{
     // File > Quit
     GtkWidget* file_quit_menu_item = GTK_WIDGET(gtk_builder_get_object(builder, "file-quit"));
     g_signal_connect(file_quit_menu_item, "activate", G_CALLBACK(+[](GtkWidget*, gpointer user_data) {
@@ -956,7 +967,8 @@ void MainApp::run()
 }
 
 
-void MainApp::shutdown() {
+void MainApp::shutdown()
+{
     if (analyze_thread.joinable()) {
         stop_analysis = true;
         analyze_thread.join();

@@ -1,4 +1,5 @@
 #include "Settings.hpp"
+#include "Types.hpp"
 #include <filesystem>
 #include <iostream>
 #include <glib.h>
@@ -34,6 +35,7 @@ Settings::Settings()
     this->sort_folder = this->default_sort_folder;
 }
 
+
 std::string Settings::define_config_path()
 {
     std::string AppName = "AIFileSorter";
@@ -50,6 +52,7 @@ std::string Settings::define_config_path()
     return "config.ini";
 }
 
+
 std::string Settings::get_config_dir()
 {
     return config_dir.string();
@@ -63,6 +66,11 @@ bool Settings::load()
         return false;
     }
 
+    std::string load_choice_value = config.getValue("Settings", "LLMChoice", "Unset");
+    if (load_choice_value == "Local") llm_choice = LLMChoice::Local;
+    else if (load_choice_value == "Remote") llm_choice = LLMChoice::Remote;
+    else llm_choice = LLMChoice::Unset;
+
     use_subcategories = config.getValue("Settings", "UseSubcategories", "false") == "true";
     categorize_files = config.getValue("Settings", "CategorizeFiles", "true") == "true";
     categorize_directories = config.getValue("Settings", "CategorizeDirectories", "false") == "true";
@@ -75,6 +83,15 @@ bool Settings::load()
 
 bool Settings::save()
 {
+    std::string save_choice_value;
+    switch (llm_choice) {
+        case LLMChoice::Local: save_choice_value = "Local"; break;
+        case LLMChoice::Remote: save_choice_value = "Remote"; break;
+        default: save_choice_value = "Unset"; break;
+    }
+    config.setValue("Settings", "LLMChoice", save_choice_value);
+
+
     config.setValue("Settings", "UseSubcategories", use_subcategories ? "true" : "false");
     config.setValue("Settings", "CategorizeFiles", categorize_files ? "true" : "false");
     config.setValue("Settings", "CategorizeDirectories", categorize_directories ? "true" : "false");
@@ -85,6 +102,23 @@ bool Settings::save()
     }
 
     return config.save(config_path);
+}
+
+
+LLMChoice Settings::get_llm_choice() const
+{
+    return llm_choice;
+}
+
+
+void Settings::set_llm_choice(LLMChoice choice)
+{
+    llm_choice = choice;
+}
+
+
+bool Settings::is_llm_chosen() const {
+    return llm_choice != LLMChoice::Unset;
 }
 
 

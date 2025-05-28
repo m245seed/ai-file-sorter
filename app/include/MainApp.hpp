@@ -37,7 +37,7 @@ public:
     
     CategorizationProgressDialog* progress_dialog;
     
-    MainApp(int argc, char **argv);
+    MainApp(int argc, char **argv, Settings& settings);
     ~MainApp();
     void run();
     void shutdown();
@@ -63,7 +63,7 @@ private:
     GtkApplication *gtk_app;
     GtkBuilder* builder;
     GtkWidget* main_window;
-    Settings settings;
+    Settings& settings;
     DatabaseManager db_manager;
     CategorizationDialog* categorization_dialog;
     FileScanner dirscanner;

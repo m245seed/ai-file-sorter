@@ -2,6 +2,7 @@
 #include "ErrorMessages.hpp"
 #include "LLMDownloader.hpp"
 #include "LLMSelectionDialog.hpp"
+#include "Settings.hpp"
 #include "Utils.hpp"
 #include <iostream>
 
@@ -36,7 +37,8 @@ void LLMSelectionDialog::on_llm_radio_toggled(GtkWidget *widget, gpointer data)
 }
 
 
-LLMSelectionDialog::LLMSelectionDialog()
+LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
+    settings(settings)
 {
     dialog = gtk_dialog_new_with_buttons("Choose LLM Mode",
                                          NULL,
@@ -177,6 +179,16 @@ LLMSelectionDialog::LLMSelectionDialog()
     }
 
     on_llm_radio_toggled(GTK_WIDGET(local_llm_button), this);
+}
+
+
+LLMChoice LLMSelectionDialog::get_selected_llm_choice() const {
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(local_llm_button))) {
+        return LLMChoice::Local;
+    } else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(remote_llm_button))) {
+        return LLMChoice::Remote;
+    }
+    return LLMChoice::Unset;
 }
 
 

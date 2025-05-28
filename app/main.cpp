@@ -43,14 +43,22 @@ int main(int argc, char **argv) {
 
         gtk_init(&argc, &argv);
 
-        LLMSelectionDialog llm_dialog;
-        if (llm_dialog.run() != GTK_RESPONSE_OK) {
-            return EXIT_SUCCESS;
+        Settings settings;
+        settings.load();
+
+        if (settings.get_llm_choice() == LLMChoice::Unset) {
+            LLMSelectionDialog llm_dialog(settings);
+            if (llm_dialog.run() != GTK_RESPONSE_OK) {
+                return EXIT_SUCCESS;
+            }
+
+            settings.set_llm_choice(llm_dialog.get_selected_llm_choice());
+            settings.save();
+
+            // gtk_widget_destroy(llm_dialog.get_widget());
         }
 
-        gtk_widget_destroy(llm_dialog.get_widget());
-
-        MainApp* main_app = new MainApp(argc, argv);
+        MainApp* main_app = new MainApp(argc, argv, settings);
         main_app->run();
         main_app->shutdown();
         delete main_app;

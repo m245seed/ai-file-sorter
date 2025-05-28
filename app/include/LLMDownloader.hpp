@@ -1,4 +1,5 @@
 #pragma once
+#include "Settings.hpp"
 #include <atomic>
 #include <curl/system.h>
 #include <functional>
