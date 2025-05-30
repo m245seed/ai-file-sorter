@@ -22,14 +22,15 @@ public:
     void try_resume_download();
     bool is_download_resumable() const;
     bool is_download_complete() const;
-    
+
+    long long get_real_content_length() const;
+    std::string get_download_destination() const;
+
     void start(std::function<void(double)> on_progress,
                std::function<void(bool, const std::string&)> on_complete);
 
     std::chrono::steady_clock::time_point last_progress_update;
     std::string url;
-    std::string download_destination;
-    long long real_content_length{0};
     
     ~LLMDownloader();
 
@@ -54,7 +55,9 @@ private:
     std::function<void()> on_download_complete;
     std::function<void(const std::string&)> on_status_text;
 
-    bool resumable = false;
+    bool resumable{false};
+    long long real_content_length{0};
+    std::string download_destination;
 
     static size_t write_data(void* ptr, size_t size, size_t nmemb, FILE* stream);
     static size_t discard_callback(char *ptr, size_t size, size_t nmemb, void *userdata);

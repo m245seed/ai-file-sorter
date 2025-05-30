@@ -118,9 +118,6 @@ int LLMDownloader::progress_func(void* clientp, curl_off_t dltotal, curl_off_t d
     double raw_progress = static_cast<double>(self->resume_offset + dlnow) / static_cast<double>(total_size);
     double clamped_progress = std::min(raw_progress, 1.0);
 
-    // printf("Dlnow: %ld, Resume offset: %ld, Total size: %ld, Progress: %.2f\n",
-    //     dlnow, self->resume_offset, total_size, clamped_progress);
-
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - self->last_progress_update);
 
@@ -159,29 +156,6 @@ size_t LLMDownloader::header_callback(char* buffer, size_t size, size_t nitems, 
 
         // Store all headers
         self->curl_headers[key] = value;
-
-        // if (key == "content-range") {
-        //     // Example value: "bytes 1200000-4999999/5000000"
-        //     size_t slash_pos = value.find('/');
-        //     if (slash_pos != std::string::npos) {
-        //         std::string total_size_str = value.substr(slash_pos + 1);
-        //         g_print("total_size_str: %s\n", total_size_str.c_str());
-        //         try {
-        //             self->real_content_length = std::stoll(total_size_str);
-        //         } catch (const std::exception& e) {
-        //             // fallback or log
-        //         }
-        //     }
-        // }
-
-        // if (key == "content-length") {
-        //     try {
-        //         self->real_content_length = std::stoll(value);
-        //         // std::cout << "[header_callback] Got Content-Length: " << self->real_content_length << std::endl;
-        //     } catch (const std::exception& e) {
-        //         // std::cerr << "[header_callback] Failed to parse Content-Length: " << e.what() << std::endl;
-        //     }            
-        // }
     }
 
     return total_size;
@@ -352,6 +326,18 @@ bool LLMDownloader::is_download_complete() const
     fclose(fp);
 
     return size >= real_content_length;
+}
+
+
+long long LLMDownloader::get_real_content_length() const
+{
+    return real_content_length;
+}
+
+
+std::string LLMDownloader::get_download_destination() const
+{
+    return download_destination;
 }
 
 

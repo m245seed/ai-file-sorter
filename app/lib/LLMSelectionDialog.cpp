@@ -31,14 +31,20 @@ void LLMSelectionDialog::on_llm_radio_toggled(GtkWidget *widget, gpointer data)
     } else {
         gtk_widget_show(dlg->file_info_box);
         gtk_widget_show(dlg->details_frame);
-        gtk_widget_show(dlg->progress_bar);
-        gtk_widget_show(dlg->download_button);
-    }
+    
+        if (status != LLMDownloader::DownloadStatus::Complete) {
+            gtk_widget_show(dlg->progress_bar);
+            gtk_widget_show(dlg->download_button);
+        } else {
+            gtk_widget_hide(dlg->progress_bar);
+            gtk_widget_hide(dlg->download_button);
+        }
+    }    
 }
 
 
 LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
-    settings(settings)
+    settings(settings), selected_choice(LLMChoice::Unset)
 {
     dialog = gtk_dialog_new_with_buttons("Choose LLM Mode",
                                          NULL,
@@ -46,7 +52,7 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
                                          "Cancel", GTK_RESPONSE_CANCEL,
                                          "OK", GTK_RESPONSE_OK,
                                          NULL);
-    
+
     gtk_widget_set_size_request(dialog, 500, 400);
     main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_set_halign(main_box, GTK_ALIGN_CENTER);
@@ -66,13 +72,14 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
     gtk_box_pack_start(GTK_BOX(radio_box), local_llm_button, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(main_box), radio_box, FALSE, FALSE, 5);
 
-    // Download button
+    // Downloader
     downloader = std::make_unique<LLMDownloader>();
 
+    // Download button
     GtkWidget *button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_set_halign(button_box, GTK_ALIGN_CENTER);
-    
-    download_button = gtk_button_new_with_label("Download");
+
+    const char* label_text = "Download";
     bool download_complete = false;
 
     switch (downloader->get_download_status()) {
@@ -80,39 +87,33 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
             download_complete = true;
             break;
         case LLMDownloader::DownloadStatus::InProgress:
-            download_button = gtk_button_new_with_label("Resume download");
-            gtk_widget_set_sensitive(download_button, FALSE);
+            label_text = "Resume download";
             break;
         case LLMDownloader::DownloadStatus::NotStarted:
-            download_button = gtk_button_new_with_label("Download");
-            gtk_widget_set_sensitive(download_button, FALSE);
+            label_text = "Download";
             break;
     }
 
+    download_button = gtk_button_new_with_label(label_text);
     gtk_widget_set_sensitive(download_button, FALSE);
     gtk_box_pack_start(GTK_BOX(button_box), download_button, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(main_box), button_box, FALSE, FALSE, 5);
 
-    // File information
-    // A separate box for file info
+    // File info
     file_info_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_container_set_border_width(GTK_CONTAINER(file_info_box), 10);
 
-    // Labels
     remote_url_label = gtk_label_new(nullptr);
     local_path_label = gtk_label_new(nullptr);
     file_size_label = gtk_label_new(nullptr);
 
-    // Format and set text
-    gtk_label_set_text(GTK_LABEL(remote_url_label),
+    gtk_label_set_markup(GTK_LABEL(remote_url_label),
         ("<b>Remote URL:</b> <span foreground='blue'>" + downloader->url + "</span>").c_str());
-    gtk_label_set_use_markup(GTK_LABEL(remote_url_label), TRUE);
     gtk_label_set_selectable(GTK_LABEL(remote_url_label), TRUE);
-    gtk_label_set_xalign(GTK_LABEL(remote_url_label), 0.0f);  // Left align
+    gtk_label_set_xalign(GTK_LABEL(remote_url_label), 0.0f);
 
-    gtk_label_set_text(GTK_LABEL(local_path_label),
-        ("<b>Local path:</b> <span foreground='darkgreen'>" + downloader->download_destination + "</span>").c_str());
-    gtk_label_set_use_markup(GTK_LABEL(local_path_label), TRUE);
+    gtk_label_set_markup(GTK_LABEL(local_path_label),
+        ("<b>Local path:</b> <span foreground='darkgreen'>" + downloader->get_download_destination() + "</span>").c_str());
     gtk_label_set_selectable(GTK_LABEL(local_path_label), TRUE);
     gtk_label_set_xalign(GTK_LABEL(local_path_label), 0.0f);
 
@@ -122,19 +123,15 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
 
     update_file_size_label();
 
-    // Add labels to info box
     gtk_box_pack_start(GTK_BOX(file_info_box), remote_url_label, FALSE, FALSE, 3);
     gtk_box_pack_start(GTK_BOX(file_info_box), local_path_label, FALSE, FALSE, 3);
     gtk_box_pack_start(GTK_BOX(file_info_box), file_size_label, FALSE, FALSE, 3);
 
-    // Optional: wrap in a frame to visually group
     details_frame = gtk_frame_new("Download details");
     gtk_container_add(GTK_CONTAINER(details_frame), file_info_box);
-
-    // Add the frame to your main box
     gtk_box_pack_start(GTK_BOX(main_box), details_frame, FALSE, FALSE, 10);
 
-    // Progress bar (wider + css fallback)
+    // Progress bar
     GtkWidget *progress_container = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_set_halign(progress_container, GTK_ALIGN_CENTER);
     gtk_widget_set_vexpand(progress_container, TRUE);
@@ -143,15 +140,13 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
     gtk_widget_set_name(progress_bar, "custom-progressbar");
     gtk_progress_bar_set_show_text(GTK_PROGRESS_BAR(progress_bar), TRUE);
 
-    // CSS for more consistent height
     GtkCssProvider *css_provider = gtk_css_provider_new();
     gtk_css_provider_load_from_data(css_provider,
         "#custom-progressbar progress, #custom-progressbar trough { min-height: 30px; }", -1, NULL);
     GtkStyleContext *context = gtk_widget_get_style_context(progress_bar);
     gtk_style_context_add_provider(context,
-            GTK_STYLE_PROVIDER(css_provider),
-            GTK_STYLE_PROVIDER_PRIORITY_USER);
-
+        GTK_STYLE_PROVIDER(css_provider),
+        GTK_STYLE_PROVIDER_PRIORITY_USER);
     g_object_unref(css_provider);
 
     gtk_widget_set_hexpand(progress_bar, TRUE);
@@ -160,7 +155,7 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
     gtk_box_pack_start(GTK_BOX(progress_container), progress_bar, TRUE, TRUE, 5);
     gtk_box_pack_start(GTK_BOX(main_box), progress_container, FALSE, FALSE, 5);
 
-    // Signals
+    // Signal connections
     g_signal_connect(remote_llm_button, "toggled", G_CALLBACK(on_llm_radio_toggled), this);
     g_signal_connect(local_llm_button, "toggled", G_CALLBACK(on_llm_radio_toggled), this);
 
@@ -169,16 +164,68 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
         dlg->on_download_button_clicked(widget, data);
     }), this);
 
-    GtkWidget *ok_btn = gtk_dialog_get_widget_for_response(GTK_DIALOG(this->dialog), GTK_RESPONSE_OK);
+    GtkWidget *ok_btn = gtk_dialog_get_widget_for_response(GTK_DIALOG(dialog), GTK_RESPONSE_OK);
     gtk_widget_set_sensitive(ok_btn, TRUE);
     gtk_widget_show_all(dialog);
-    
+
     if (download_complete) {
         gtk_widget_hide(download_button);
         gtk_widget_hide(progress_bar);
     }
 
-    on_llm_radio_toggled(GTK_WIDGET(local_llm_button), this);
+    LLMChoice current_choice = settings.get_llm_choice();
+    switch (current_choice) {
+        case LLMChoice::Remote:
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(remote_llm_button), TRUE);
+            selected_choice = LLMChoice::Remote;
+            break;
+        case LLMChoice::Local:
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(local_llm_button), TRUE);
+            selected_choice = LLMChoice::Local;
+            break;
+        default:
+            break;
+    }
+
+    init_progress_bar();
+
+    g_idle_add([](gpointer data) -> gboolean {
+        LLMSelectionDialog* dlg = static_cast<LLMSelectionDialog*>(data);
+
+        GtkToggleButton* btn = nullptr;
+        if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dlg->remote_llm_button))) {
+            btn = GTK_TOGGLE_BUTTON(dlg->remote_llm_button);
+        } else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dlg->local_llm_button))) {
+            btn = GTK_TOGGLE_BUTTON(dlg->local_llm_button);
+        }
+
+        if (btn) {
+            on_llm_radio_toggled(GTK_WIDGET(btn), dlg);
+        }
+
+        return G_SOURCE_REMOVE;
+    }, this);
+}
+
+
+void LLMSelectionDialog::init_progress_bar()
+{
+    if (!downloader->is_inited()) {
+        downloader->init_if_needed();
+    }
+
+    FILE* fp = fopen(downloader->get_download_destination().c_str(), "rb");
+    if (!fp) return;
+
+    fseek(fp, 0, SEEK_END);
+    long current_size = ftell(fp);
+    fclose(fp);
+
+    long total = downloader->get_real_content_length();
+    if (total > 0 && current_size > 0) {
+        double progress = static_cast<double>(current_size) / total;
+        update_progress(progress);
+    }
 }
 
 
@@ -193,7 +240,7 @@ LLMChoice LLMSelectionDialog::get_selected_llm_choice() const {
 
 
 void LLMSelectionDialog::update_file_size_label() {
-    std::string size_str = Utils::format_size(downloader->real_content_length);
+    std::string size_str = Utils::format_size(downloader->get_real_content_length());
     gtk_label_set_text(GTK_LABEL(file_size_label),
         ("<b>File size:</b> " + size_str).c_str());
     gtk_label_set_use_markup(GTK_LABEL(file_size_label), TRUE);

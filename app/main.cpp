@@ -54,8 +54,6 @@ int main(int argc, char **argv) {
 
             settings.set_llm_choice(llm_dialog.get_selected_llm_choice());
             settings.save();
-
-            // gtk_widget_destroy(llm_dialog.get_widget());
         }
 
         MainApp* main_app = new MainApp(argc, argv, settings);

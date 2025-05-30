@@ -5,6 +5,7 @@
 #include "ErrorMessages.hpp"
 #include "FileScanner.hpp"
 #include "LLMClient.hpp"
+#include "LLMSelectionDialog.hpp"
 #include "Logger.hpp"
 #include "MainAppEditActions.hpp"
 #include "MainAppHelpActions.hpp"
@@ -901,6 +902,13 @@ void MainApp::connect_ui_signals()
         g_critical("Failed to load 'view-file-explorer' or 'directory_browser'.");
     }
 
+    // Settings > Toggle LLM
+    GtkWidget* toggle_llm_menu_item = GTK_WIDGET(gtk_builder_get_object(builder, "menu-toggle-llm"));
+    g_signal_connect(toggle_llm_menu_item, "activate", G_CALLBACK(+[](GtkMenuItem*, gpointer user_data) {
+        MainApp* app = static_cast<MainApp*>(user_data);
+        app->show_llm_selection_dialog();
+    }), this);
+
     // Browse button
     GtkWidget *browse_button = GTK_WIDGET(gtk_builder_get_object(builder, "browse_button"));
     if (browse_button && path_entry) {
@@ -958,6 +966,21 @@ void MainApp::connect_ui_signals()
         MainApp* self = static_cast<MainApp*>(user_data);
         self->on_donate_activate();
     }), this);
+}
+
+
+void MainApp::show_llm_selection_dialog() {
+    auto dialog = std::make_unique<LLMSelectionDialog>(settings);
+    gtk_window_set_transient_for(GTK_WINDOW(dialog->get_widget()), GTK_WINDOW(main_window));
+    gtk_window_set_modal(GTK_WINDOW(dialog->get_widget()), TRUE);
+    gtk_widget_show_all(dialog->get_widget());
+
+    int response = gtk_dialog_run(GTK_DIALOG(dialog->get_widget()));
+
+    if (response == GTK_RESPONSE_OK) {
+        settings.set_llm_choice(dialog->get_selected_llm_choice());
+        settings.save();
+    }
 }
 
 

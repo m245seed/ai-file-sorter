@@ -96,6 +96,7 @@ private:
     void on_donate_activate();
     void set_app_icon();
     void connect_ui_signals();
+    void show_llm_selection_dialog();
     static void on_activate_wrapper(GtkApplication *gtk_app, gpointer user_data);
     std::string get_folder_path();
     std::vector<CategorizedFile>
