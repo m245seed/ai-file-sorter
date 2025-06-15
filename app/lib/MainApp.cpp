@@ -32,6 +32,7 @@
 #include <thread>
 #include <unordered_set>
 #include <vector>
+#include <LocalLLMClient.hpp>
 
 extern GResource *resources_get_resource();
 
@@ -48,6 +49,10 @@ MainApp::MainApp(int argc, char **argv, Settings& settings)
       ui_logger(Logger::get_logger("ui_logger")),
       file_scan_options(FileScanOptions::None)
 {
+    if (settings.get_llm_choice() != LLMChoice::Remote) {
+        using_local_llm = true;
+    }
+
     stop_analysis = false;
 
     gtk_app = create_app();
@@ -288,7 +293,6 @@ void MainApp::perform_analysis()
             }, context.release());
         }
 
-
         std::unordered_set<std::string> cached_file_names = extract_file_names(already_categorized_files);
         
         if (stop_analysis) {
@@ -506,14 +510,24 @@ std::tuple<std::string, std::string> split_category_subcategory(const std::strin
 std::vector<CategorizedFile> 
 MainApp::categorize_files(const std::vector<FileEntry>& items)
 {
-    CategorizationSession categorization_session;
-    LLMClient llm = categorization_session.create_llm_client();
+    std::unique_ptr<ILLMClient> llm;
+
+    if (settings.get_llm_choice() == LLMChoice::Remote) {
+        CategorizationSession categorization_session;
+        llm = std::make_unique<LLMClient>(categorization_session.create_llm_client());
+    } else if (settings.get_llm_choice() == LLMChoice::Local_3b) {
+        std::string url = std::getenv("LOCAL_LLM_3B_DOWNLOAD_URL");
+        llm = std::make_unique<LocalLLMClient>(Utils::make_default_path_to_file_from_download_url(url));
+    } else {
+        std::string url = std::getenv("LOCAL_LLM_7B_DOWNLOAD_URL");
+        llm = std::make_unique<LocalLLMClient>(Utils::make_default_path_to_file_from_download_url(url));
+    }
 
     std::vector<CategorizedFile> categorized_items;
 
     for (const auto &[full_path, name, type] : items) {
         if (stop_analysis) {
-            core_logger->info("Stopping categorization...\n");
+            core_logger->info("Stopping categorization at user request...\n");
             return categorized_items;
         }
 
@@ -536,7 +550,7 @@ MainApp::categorize_files(const std::vector<FileEntry>& items)
                 }, progress_data.release());
             };
 
-            auto [category, subcategory] = categorize_file(llm, name, type, report_progress);
+            auto [category, subcategory] = categorize_file(*llm, name, type, report_progress);
 
             categorized_items.emplace_back(CategorizedFile{
                                                 dir_path,
@@ -558,7 +572,7 @@ MainApp::categorize_files(const std::vector<FileEntry>& items)
 }
 
 
-std::string MainApp::categorize_with_timeout(LLMClient& llm, const std::string& item_name,
+std::string MainApp::categorize_with_timeout(ILLMClient& llm, const std::string& item_name,
                                              const FileType file_type, int timeout_seconds)
 {
     std::promise<std::string> promise;
@@ -583,7 +597,7 @@ std::string MainApp::categorize_with_timeout(LLMClient& llm, const std::string& 
 
 
 std::tuple<std::string, std::string>
-MainApp::categorize_file(LLMClient& llm, const std::string& item_name,
+MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
                          const FileType file_type,
                          const std::function<void(const std::string&)>& report_progress)
 {
@@ -599,24 +613,31 @@ MainApp::categorize_file(LLMClient& llm, const std::string& item_name,
         return std::make_tuple(category, subcategory);
     }
 
-    const char* env_pc = std::getenv("ENV_PC");
-    const char* env_rr = std::getenv("ENV_RR");
+    if (!using_local_llm) {
+        const char* env_pc = std::getenv("ENV_PC");
+        const char* env_rr = std::getenv("ENV_RR");
 
-    std::string key;
-    try {
-        CryptoManager crypto(env_pc, env_rr);
-        key = crypto.reconstruct();
-    } catch (const std::exception& ex) {
-        std::string message = "CryptoManager error for \"" + item_name + "\": " + ex.what();
-        report_progress(message);
-        g_printerr("%s\n", message.c_str());
-        return std::make_tuple("", "");
+        std::string key;
+        try {
+            CryptoManager crypto(env_pc, env_rr);
+            key = crypto.reconstruct();
+        } catch (const std::exception& ex) {
+            std::string message = "CryptoManager error for \"" + item_name + "\": " + ex.what();
+            report_progress(message);
+            g_printerr("%s\n", message.c_str());
+            return std::make_tuple("", "");
+        }
     }
 
     try {
         std::string category_subcategory;
         try {
-            category_subcategory = categorize_with_timeout(llm, item_name, file_type, 10);
+            if (using_local_llm) {
+                // Wait 30 seconds if using a local LLM
+                category_subcategory = categorize_with_timeout(llm, item_name, file_type, 30);
+            } else {
+                category_subcategory = categorize_with_timeout(llm, item_name, file_type, 10);
+            }
         } catch (const std::exception& ex) {
             std::string message = "LLM Timeout/Error: " + std::string(ex.what());
             report_progress(message);

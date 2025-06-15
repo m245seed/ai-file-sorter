@@ -14,7 +14,7 @@ public:
     ~LLMSelectionDialog();
     LLMChoice get_selected_llm_choice() const;
     int run();
-    GtkWidget* get_widget(); 
+    GtkWidget* get_widget();
 
 private:
     GtkWidget *dialog;
@@ -24,7 +24,8 @@ private:
     GtkWidget *local_path_label;
     GtkWidget *file_size_label;
     GtkWidget *remote_llm_button;
-    GtkWidget *local_llm_button;
+    GtkWidget *local_llm_3b_button;
+    GtkWidget *local_llm_7b_button;
     GtkWidget *download_button;
     GtkWidget *progress_bar;
     GtkWidget *ok_btn;

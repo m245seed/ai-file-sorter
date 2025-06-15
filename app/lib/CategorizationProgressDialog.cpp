@@ -108,6 +108,11 @@ void CategorizationProgressDialog::append_text(const std::string& text)
     }
 
     gtk_text_buffer_insert_at_cursor(buffer, text.c_str(), -1);
+
+    // Scroll down on text update
+    GtkTextIter end_iter;
+    gtk_text_buffer_get_end_iter(buffer, &end_iter);
+    gtk_text_view_scroll_to_iter(GTK_TEXT_VIEW(m_TextView), &end_iter, 0.0, FALSE, 0.0, 1.0);
 }
 
 

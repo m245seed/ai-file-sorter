@@ -1,4 +1,5 @@
 #include "Utils.hpp"
+#include <cuda_runtime.h>
 #include <filesystem>
 #include <stdlib.h>
 #include <string>
@@ -123,4 +124,86 @@ std::string Utils::format_size(curl_off_t bytes)
     else
         snprintf(buffer, sizeof(buffer), "%.2f B", bytes / (double)(1LL << 10));
     return buffer;
+}
+
+
+int Utils::get_ngl(int vram_mb) {
+    if (vram_mb < 2048) return 0;
+
+    int step = (vram_mb - 2048) / 512;
+    return std::min(12 + step * 2, 32);
+}
+
+
+int Utils::determine_ngl_cuda()
+{
+    int device = 0;
+    cudaDeviceProp prop;
+
+    if (cudaGetDeviceProperties(&prop, device) != cudaSuccess) {
+        std::cerr << "Warning: Unable to get CUDA device properties. Using safe fallback value.\n";
+        return 0;
+    }
+
+    size_t total_mem_bytes = 0;
+    if (cudaMemGetInfo(nullptr, &total_mem_bytes) != cudaSuccess) {
+        total_mem_bytes = prop.totalGlobalMem;
+    }
+
+    int vram_mb = static_cast<int>(total_mem_bytes / (1024 * 1024));
+
+    return get_ngl(vram_mb);
+}
+
+
+template <typename Func>
+void Utils::run_on_main_thread(Func&& func)
+{
+    auto* task = new std::function<void()>(std::forward<Func>(func));
+    g_idle_add([](gpointer data) -> gboolean {
+        auto* f = static_cast<std::function<void()>*>(data);
+        (*f)();
+        delete f;
+        return G_SOURCE_REMOVE;
+    }, task);
+}
+
+
+std::string Utils::get_default_llm_destination()
+{
+    const char* home = std::getenv("HOME");
+
+    if (Utils::is_os_windows()) {
+        const char* appdata = std::getenv("APPDATA");
+        if (!appdata) throw std::runtime_error("APPDATA not set");
+        return std::filesystem::path(appdata) / "aifilesorter" / "llms";
+    }
+
+    if (!home) throw std::runtime_error("HOME not set");
+
+    if (Utils::is_os_macos()) {
+        return std::filesystem::path(home) / "Library" / "Application Support" / "aifilesorter" / "llms";
+    }
+
+    return std::filesystem::path(home) / ".local" / "share" / "aifilesorter" / "llms";
+}
+
+
+std::string Utils::get_file_name_from_url(std::string url)
+{
+    auto last_slash = url.find_last_of('/');
+    if (last_slash == std::string::npos || last_slash == url.length() - 1) {
+        throw std::runtime_error("Invalid download URL: can't extract filename");
+    }
+    std::string filename = url.substr(last_slash + 1);
+
+    return filename;
+}
+
+
+std::string Utils::make_default_path_to_file_from_download_url(std::string url)
+{
+    std::string filename = get_file_name_from_url(url);
+    std::string path_to_file = (std::filesystem::path(get_default_llm_destination()) / filename).string();
+    return path_to_file;
 }

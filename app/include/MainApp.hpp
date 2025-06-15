@@ -77,6 +77,7 @@ private:
     FileScanOptions file_scan_options;
     CheckboxData* data_for_files = nullptr;
     CheckboxData* data_for_directories = nullptr;
+    bool using_local_llm{false};
 
     GtkApplication *create_app();
     void initialize_checkboxes();
@@ -101,9 +102,9 @@ private:
     std::string get_folder_path();
     std::vector<CategorizedFile>
         categorize_files(const std::vector<FileEntry>& files);
-    std::string categorize_with_timeout(LLMClient &llm, const std::string &item_name,
+    std::string categorize_with_timeout(ILLMClient &llm, const std::string &item_name,
                                         const FileType file_type, int timeout_seconds);
-    std::tuple<std::string, std::string> categorize_file(LLMClient &llm,
+    std::tuple<std::string, std::string> categorize_file(ILLMClient& llm,
                                                          const std::string &item_name,
                                                          const FileType file_type,
                                                          const std::function<void(const std::string&)>& report_progress);

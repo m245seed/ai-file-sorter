@@ -29,6 +29,9 @@ LLMClient::LLMClient(const std::string &api_key) : api_key(api_key)
 {}
 
 
+LLMClient::~LLMClient() = default;
+
+
 std::string LLMClient::send_api_request(std::string json_payload) {
     CURL *curl;
     CURLcode res;
@@ -106,10 +109,8 @@ std::string LLMClient::make_payload(const std::string& file_name, const FileType
     std::string prompt;
 
     if (file_type == FileType::File) {
-        // g_print("File name: %s\n", file_name.c_str());
         prompt = "Categorize file: " + file_name;
     } else {
-        // g_print("Directory name: %s\n", file_name.c_str());
         prompt = "Categorize directory: " + file_name;
     }
 

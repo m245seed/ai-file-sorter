@@ -1,13 +1,15 @@
 #ifndef LLMCLIENT_HPP
 #define LLMCLIENT_HPP
 
+#include "ILLMClient.hpp"
 #include <Types.hpp>
 #include <string>
 
-class LLMClient {
+class LLMClient : public ILLMClient {
 public:
     LLMClient(const std::string &api_key);
-    std::string categorize_file(const std::string& file_name, const FileType file_type);
+    ~LLMClient() override;
+    std::string categorize_file(const std::string& file_name, FileType file_type) override;
 
 private:
     std::string api_key;

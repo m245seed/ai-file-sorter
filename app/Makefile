@@ -12,7 +12,10 @@ ifeq ($(UNAME), Linux)
     TARGET := $(BIN_DIR)/aifilesorter
     INSTALL_DIR := /usr/local/bin
     RESOURCE_DIR := /usr/local/share/aifilesorter
-    LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl
+    LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lcommon \
+		-lggml -lggml-cpu -lggml-cuda -lggml-base -lggml-blas \
+  		-lopenblas -lcudart -lcuda -lcublas \
+  		-pthread -fopenmp
 else ifeq ($(UNAME), Darwin)
     PLATFORM := MacOS
     CXXFLAGS += -DMACOS
@@ -48,7 +51,8 @@ CXXFLAGS += -std=c++20 -Wall $(shell pkg-config --cflags gtkmm-3.0)
 CXXFLAGS += -g -O0
 
 LDFLAGS += $(shell pkg-config --libs gtkmm-3.0)
-INCLUDE_DIRS = -I./include
+INCLUDE_DIRS = -I./include -I./include/llama
+LIB_DIRS = -L./lib/precompiled
 
 # Source files
 SRCS = main.cpp $(wildcard $(SRC_DIR)/*.cpp)
@@ -62,7 +66,7 @@ all: $(TARGET)
 
 $(TARGET): $(OBJS) $(RC_OBJ)
 	mkdir -p $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(RESOURCES) $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(RESOURCES) $(LIB_DIRS) $(LDFLAGS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(OBJ_DIR)

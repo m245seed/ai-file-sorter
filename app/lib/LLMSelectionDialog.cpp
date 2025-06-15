@@ -10,36 +10,90 @@
 void LLMSelectionDialog::on_llm_radio_toggled(GtkWidget *widget, gpointer data)
 {
     LLMSelectionDialog *dlg = static_cast<LLMSelectionDialog*>(data);
-    bool is_local_selected = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dlg->local_llm_button));
 
-    gtk_widget_set_sensitive(dlg->download_button, is_local_selected);
+    // Hvilken modell har brukeren valgt?
+    bool is_local_3b = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dlg->local_llm_3b_button));
+    bool is_local_7b = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dlg->local_llm_7b_button));
+    bool is_local_selected = is_local_3b || is_local_7b;
+
+    dlg->selected_choice = is_local_3b ? LLMChoice::Local_3b :
+                            is_local_7b ? LLMChoice::Local_7b :
+                                          LLMChoice::Remote;
 
     dlg->ok_btn = gtk_dialog_get_widget_for_response(GTK_DIALOG(dlg->dialog), GTK_RESPONSE_OK);
+    gtk_widget_set_sensitive(dlg->download_button, is_local_selected);
 
-    LLMDownloader::DownloadStatus status = dlg->downloader->get_download_status();
+    // Helper for hiding a group of widgets
+    auto hide_widgets = [&](std::initializer_list<GtkWidget*> widgets) {
+        for (auto w : widgets) gtk_widget_hide(w);
+    };
+    auto show_widgets = [&](std::initializer_list<GtkWidget*> widgets) {
+        for (auto w : widgets) gtk_widget_show(w);
+    };
 
-    bool enable_ok = !is_local_selected || status == LLMDownloader::DownloadStatus::Complete;
-    gtk_widget_set_sensitive(dlg->ok_btn, enable_ok);
-
+    // Si l'utilisateur choisit un modèle local...
     if (!is_local_selected) {
-        gtk_widget_hide(dlg->file_info_box);
-        gtk_widget_hide(dlg->details_frame);
-        gtk_widget_hide(dlg->progress_bar);
-        gtk_widget_hide(dlg->download_button);
+        hide_widgets({ dlg->file_info_box, dlg->details_frame, dlg->progress_bar, dlg->download_button });
+        gtk_widget_set_sensitive(dlg->ok_btn, TRUE);
         GtkWindow *win = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(dlg->dialog)));
-        gtk_window_resize(win, 1, 1);
-    } else {
-        gtk_widget_show(dlg->file_info_box);
-        gtk_widget_show(dlg->details_frame);
-    
-        if (status != LLMDownloader::DownloadStatus::Complete) {
-            gtk_widget_show(dlg->progress_bar);
-            gtk_widget_show(dlg->download_button);
-        } else {
-            gtk_widget_hide(dlg->progress_bar);
-            gtk_widget_hide(dlg->download_button);
+        gtk_window_resize(win, 1, 1); // Shrink window
+        return;
+    }
+
+    const char* env_var = (dlg->selected_choice == LLMChoice::Local_3b)
+                          ? "LOCAL_LLM_3B_DOWNLOAD_URL"
+                          : "LOCAL_LLM_7B_DOWNLOAD_URL";
+
+    const char* env_url = std::getenv(env_var);
+    if (!env_url) {
+        gtk_label_set_text(GTK_LABEL(dlg->remote_url_label), "Missing download URL environment variable.");
+        gtk_widget_set_sensitive(dlg->ok_btn, FALSE);
+        return;
+    }
+
+    LLMDownloader::DownloadStatus status = LLMDownloader::DownloadStatus::NotStarted;
+
+    try {
+        dlg->downloader->set_download_url(env_url);
+        if (Utils::is_network_available()) {
+            dlg->downloader->init_if_needed();
         }
-    }    
+
+        // Update download info UI
+        std::string url_markup = "<b>Remote URL:</b> <span foreground='blue'>" + dlg->downloader->get_download_url() + "</span>";
+        gtk_label_set_markup(GTK_LABEL(dlg->remote_url_label), url_markup.c_str());
+
+        std::string path_markup = "<b>Local path:</b> <span foreground='darkgreen'>" + dlg->downloader->get_download_destination() + "</span>";
+        gtk_label_set_markup(GTK_LABEL(dlg->local_path_label), path_markup.c_str());
+
+        dlg->update_file_size_label();
+
+        status = dlg->downloader->get_download_status();
+
+        // Determine button label
+        const char* label_text = (status == LLMDownloader::DownloadStatus::Complete)     ? "Re-download" :
+                                 (status == LLMDownloader::DownloadStatus::InProgress)   ? "Resume download" :
+                                                                                           "Download";
+        gtk_button_set_label(GTK_BUTTON(dlg->download_button), label_text);
+
+    } catch (const std::exception& ex) {
+        gtk_label_set_text(GTK_LABEL(dlg->remote_url_label), ex.what());
+        gtk_widget_set_sensitive(dlg->ok_btn, FALSE);
+        return;
+    }
+
+    // Enable OK only if download is already complete
+    gtk_widget_set_sensitive(dlg->ok_btn, status == LLMDownloader::DownloadStatus::Complete);
+
+    show_widgets({ dlg->file_info_box, dlg->details_frame });
+
+    if (status == LLMDownloader::DownloadStatus::Complete) {
+        hide_widgets({ dlg->progress_bar, dlg->download_button });
+    } else {
+        show_widgets({ dlg->progress_bar, dlg->download_button });
+    }
+
+    dlg->init_progress_bar();
 }
 
 
@@ -63,17 +117,57 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
     gtk_widget_set_halign(title_label, GTK_ALIGN_CENTER);
     gtk_box_pack_start(GTK_BOX(main_box), title_label, FALSE, FALSE, 5);
 
-    // Radio buttons
+    // Descriptions
     GtkWidget *radio_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    GtkWidget* label_remote_desc = gtk_label_new(
+    "Online LLM – fast, accurate, and always up-to-date. Requires internet connection.");
+    gtk_label_set_xalign(GTK_LABEL(label_remote_desc), 0.0f);
+    gtk_widget_set_margin_bottom(label_remote_desc, 10);
+    GtkWidget* label_3b_desc = gtk_label_new(
+    "Not very precise, but works quickly even on CPUs. Good for lightweight local use.");
+    gtk_label_set_xalign(GTK_LABEL(label_3b_desc), 0.0f);
+    gtk_widget_set_margin_bottom(label_3b_desc, 10);
+
+    GtkWidget* label_7b_desc = gtk_label_new(
+        "Quite precise. Slower on CPU, but performs much better with GPU acceleration.\n"
+        "Supports: Nvidia (cuBLAS), AMD (ROCm/HIP), Apple Silicon (Metal).");
+    gtk_label_set_xalign(GTK_LABEL(label_7b_desc), 0.0f);
+    gtk_widget_set_margin_bottom(label_7b_desc, 10);
+
+    // Radio buttons
     gtk_widget_set_halign(radio_box, GTK_ALIGN_CENTER);
-    remote_llm_button = gtk_radio_button_new_with_label(NULL, "Remote LLM (ChatGPT 4o-mini)");
-    local_llm_button = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(remote_llm_button), "Local LLM (LLaMa 3.2 3B)");
+    GtkWidget* remote_llm_label = gtk_label_new(nullptr);
+
+    gtk_label_set_markup(GTK_LABEL(remote_llm_label), "<b>Remote LLM (ChatGPT 4o-mini)</b>");
+    remote_llm_button = gtk_radio_button_new(NULL);
+    gtk_container_add(GTK_CONTAINER(remote_llm_button), remote_llm_label);
+
+    GtkWidget* local_llm_3b_label = gtk_label_new(nullptr);
+    gtk_label_set_markup(GTK_LABEL(local_llm_3b_label), "<b>Local LLM (LLaMa 3b v3.2 Instruct Q8)</b>");
+    local_llm_3b_button = gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(remote_llm_button));
+    gtk_container_add(GTK_CONTAINER(local_llm_3b_button), local_llm_3b_label);
+
+    GtkWidget* local_llm_7b_label = gtk_label_new(nullptr);
+    gtk_label_set_markup(GTK_LABEL(local_llm_7b_label), "<b>Local LLM (Mistral 7b Instruct v0.2 Q5)</b>");
+    local_llm_7b_button = gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(remote_llm_button));
+    gtk_container_add(GTK_CONTAINER(local_llm_7b_button), local_llm_7b_label);
+
     gtk_box_pack_start(GTK_BOX(radio_box), remote_llm_button, FALSE, FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(radio_box), local_llm_button, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(radio_box), label_remote_desc, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(radio_box), local_llm_7b_button, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(radio_box), label_7b_desc, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(radio_box), local_llm_3b_button, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(radio_box), label_3b_desc, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(main_box), radio_box, FALSE, FALSE, 5);
 
     // Downloader
-    downloader = std::make_unique<LLMDownloader>();
+    const char* default_url = std::getenv("LOCAL_LLM_3B_DOWNLOAD_URL");
+
+    if (!default_url) {
+        throw std::runtime_error("Required environment variable for selected model is not set");
+    }
+
+    downloader = std::make_unique<LLMDownloader>(default_url);
 
     // Download button
     GtkWidget *button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -108,7 +202,8 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
     file_size_label = gtk_label_new(nullptr);
 
     gtk_label_set_markup(GTK_LABEL(remote_url_label),
-        ("<b>Remote URL:</b> <span foreground='blue'>" + downloader->url + "</span>").c_str());
+        ("<b>Remote URL:</b> <span foreground='blue'>" + downloader->get_download_url() + "</span>").c_str());
+
     gtk_label_set_selectable(GTK_LABEL(remote_url_label), TRUE);
     gtk_label_set_xalign(GTK_LABEL(remote_url_label), 0.0f);
 
@@ -116,10 +211,6 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
         ("<b>Local path:</b> <span foreground='darkgreen'>" + downloader->get_download_destination() + "</span>").c_str());
     gtk_label_set_selectable(GTK_LABEL(local_path_label), TRUE);
     gtk_label_set_xalign(GTK_LABEL(local_path_label), 0.0f);
-
-    if (Utils::is_network_available()) {
-        downloader->init_if_needed();
-    }
 
     update_file_size_label();
 
@@ -157,7 +248,8 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
 
     // Signal connections
     g_signal_connect(remote_llm_button, "toggled", G_CALLBACK(on_llm_radio_toggled), this);
-    g_signal_connect(local_llm_button, "toggled", G_CALLBACK(on_llm_radio_toggled), this);
+    g_signal_connect(local_llm_3b_button, "toggled", G_CALLBACK(on_llm_radio_toggled), this);
+    g_signal_connect(local_llm_7b_button, "toggled", G_CALLBACK(on_llm_radio_toggled), this);
 
     g_signal_connect(download_button, "clicked", G_CALLBACK(+[](GtkWidget *widget, gpointer data) {
         LLMSelectionDialog *dlg = static_cast<LLMSelectionDialog*>(data);
@@ -166,6 +258,11 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
 
     GtkWidget *ok_btn = gtk_dialog_get_widget_for_response(GTK_DIALOG(dialog), GTK_RESPONSE_OK);
     gtk_widget_set_sensitive(ok_btn, TRUE);
+
+    gtk_widget_hide(download_button);
+    gtk_widget_hide(details_frame);
+    gtk_widget_hide(progress_bar);
+
     gtk_widget_show_all(dialog);
 
     if (download_complete) {
@@ -179,9 +276,13 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(remote_llm_button), TRUE);
             selected_choice = LLMChoice::Remote;
             break;
-        case LLMChoice::Local:
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(local_llm_button), TRUE);
-            selected_choice = LLMChoice::Local;
+        case LLMChoice::Local_3b:
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(local_llm_3b_button), TRUE);
+            selected_choice = LLMChoice::Local_3b;
+            break;
+        case LLMChoice::Local_7b:
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(local_llm_7b_button), TRUE);
+            selected_choice = LLMChoice::Local_7b;
             break;
         default:
             break;
@@ -195,8 +296,10 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
         GtkToggleButton* btn = nullptr;
         if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dlg->remote_llm_button))) {
             btn = GTK_TOGGLE_BUTTON(dlg->remote_llm_button);
-        } else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dlg->local_llm_button))) {
-            btn = GTK_TOGGLE_BUTTON(dlg->local_llm_button);
+        } else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dlg->local_llm_3b_button))) {
+            btn = GTK_TOGGLE_BUTTON(dlg->local_llm_3b_button);
+        } else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dlg->local_llm_7b_button))) {
+            btn = GTK_TOGGLE_BUTTON(dlg->local_llm_7b_button);
         }
 
         if (btn) {
@@ -229,9 +332,12 @@ void LLMSelectionDialog::init_progress_bar()
 }
 
 
-LLMChoice LLMSelectionDialog::get_selected_llm_choice() const {
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(local_llm_button))) {
-        return LLMChoice::Local;
+LLMChoice LLMSelectionDialog::get_selected_llm_choice() const
+{
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(local_llm_3b_button))) {
+        return LLMChoice::Local_3b;
+    } else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(local_llm_7b_button))) {
+        return LLMChoice::Local_7b;
     } else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(remote_llm_button))) {
         return LLMChoice::Remote;
     }
@@ -262,7 +368,8 @@ GtkWidget* LLMSelectionDialog::get_widget()
 
 void LLMSelectionDialog::on_selection_changed(GtkWidget *widget, gpointer data)
 {
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(local_llm_button))) {
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(local_llm_3b_button)) ||
+        gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(local_llm_7b_button))) {
         gtk_widget_set_sensitive(download_button, TRUE);
     } else {
         gtk_widget_set_sensitive(download_button, FALSE);

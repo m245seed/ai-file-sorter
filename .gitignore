@@ -40,6 +40,9 @@ encryption.ini
 *.a
 *.lib
 
+# Third-part libraries
+app/include/external/llama.cpp/
+
 # Executables
 *.exe
 *.out

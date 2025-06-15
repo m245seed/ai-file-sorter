@@ -6,7 +6,8 @@
 enum class LLMChoice {
     Unset,
     Remote,
-    Local
+    Local_3b,
+    Local_7b
 };
 
 enum class FileType {File, Directory};

@@ -1,36 +1,28 @@
 #include "LLMDownloader.hpp"
+#include "Utils.hpp"
+#include "DialogUtils.hpp"
+#include "ErrorMessages.hpp"
 #include <cstdlib>
 #include <curl/curl.h>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
 #include <glibmm/main.h>
-#include <Utils.hpp>
-#include <DialogUtils.hpp>
-#include <ErrorMessages.hpp>
 
 
-LLMDownloader::LLMDownloader()
-    : url([] {
-        const char* env_url = std::getenv("LOCAL_LLM_DOWNLOAD_URL");
-        if (!env_url) {
-            throw std::runtime_error("Environment variable LOCAL_LLM_DOWNLOAD_URL is not set");
-        }
-        return std::string(env_url);
-    }()),
-      destination_dir(get_default_llm_destination())
+LLMDownloader::LLMDownloader(const std::string& download_url)
+    : url(download_url),
+      destination_dir(Utils::get_default_llm_destination())
 {
-    auto last_slash = url.find_last_of('/');
-    if (last_slash == std::string::npos || last_slash == url.length() - 1) {
-        throw std::runtime_error("Invalid download URL: can't extract filename");
-    }
-
-    std::string filename = url.substr(last_slash + 1);
-
-    std::filesystem::create_directories(destination_dir);
-
-    download_destination = (std::filesystem::path(destination_dir) / filename).string();
+    set_download_destination();
     last_progress_update = std::chrono::steady_clock::now();
+}
+
+
+void LLMDownloader::set_download_destination()
+{
+    std::filesystem::create_directories(destination_dir);
+    download_destination = Utils::make_default_path_to_file_from_download_url(url);
 }
 
 
@@ -44,6 +36,7 @@ void LLMDownloader::init_if_needed()
     }
 
     parse_headers();
+    set_download_destination();
     initialized = true;
 }
 
@@ -355,25 +348,6 @@ LLMDownloader::DownloadStatus LLMDownloader::get_download_status() const
 }
 
 
-std::string LLMDownloader::get_default_llm_destination() {
-    const char* home = std::getenv("HOME");
-
-    if (Utils::is_os_windows()) {
-        const char* appdata = std::getenv("APPDATA");
-        if (!appdata) throw std::runtime_error("APPDATA not set");
-        return std::filesystem::path(appdata) / "aifilesorter" / "llms";
-    }
-
-    if (!home) throw std::runtime_error("HOME not set");
-
-    if (Utils::is_os_macos()) {
-        return std::filesystem::path(home) / "Library" / "Application Support" / "aifilesorter" / "llms";
-    }
-
-    return std::filesystem::path(home) / ".local" / "share" / "aifilesorter" / "llms";
-}
-
-
 void LLMDownloader::cancel_download()
 {
     std::lock_guard<std::mutex> lock(mutex);
@@ -385,4 +359,24 @@ LLMDownloader::~LLMDownloader() {
     if (download_thread.joinable()) {
         download_thread.join();
     }
+}
+
+
+void LLMDownloader::set_download_url(const std::string& new_url) {
+    if (new_url == url) return;
+
+    url = new_url;
+    initialized = false;
+
+    try {
+        init_if_needed();
+    } catch (const std::exception& ex) {
+        // Log errors
+    }
+}
+
+
+std::string LLMDownloader::get_download_url()
+{
+    return url;
 }

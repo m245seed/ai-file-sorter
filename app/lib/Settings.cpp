@@ -67,7 +67,8 @@ bool Settings::load()
     }
 
     std::string load_choice_value = config.getValue("Settings", "LLMChoice", "Unset");
-    if (load_choice_value == "Local") llm_choice = LLMChoice::Local;
+    if (load_choice_value == "Local_3b") llm_choice = LLMChoice::Local_3b;
+    else if (load_choice_value == "Local_7b") llm_choice = LLMChoice::Local_7b;
     else if (load_choice_value == "Remote") llm_choice = LLMChoice::Remote;
     else llm_choice = LLMChoice::Unset;
 
@@ -85,7 +86,8 @@ bool Settings::save()
 {
     std::string save_choice_value;
     switch (llm_choice) {
-        case LLMChoice::Local: save_choice_value = "Local"; break;
+        case LLMChoice::Local_3b: save_choice_value = "Local_3b"; break;
+        case LLMChoice::Local_7b: save_choice_value = "Local_7b"; break;
         case LLMChoice::Remote: save_choice_value = "Remote"; break;
         default: save_choice_value = "Unset"; break;
     }

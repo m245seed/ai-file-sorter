@@ -13,7 +13,7 @@
 class LLMDownloader
 {
 public:
-    LLMDownloader();
+    LLMDownloader(const std::string& download_url);
     void init_if_needed();
     bool is_inited();
     void start_download(std::function<void(double)> progress_cb,
@@ -30,7 +30,6 @@ public:
                std::function<void(bool, const std::string&)> on_complete);
 
     std::chrono::steady_clock::time_point last_progress_update;
-    std::string url;
     
     ~LLMDownloader();
 
@@ -42,9 +41,12 @@ public:
     
     DownloadStatus get_download_status() const;
     void cancel_download();
+    void set_download_url(const std::string& new_url);
+    std::string get_download_url();
 
 private:
     bool initialized{false};
+    std::string url;
     std::string destination_dir;
 
     std::thread download_thread;
@@ -65,6 +67,7 @@ private:
     static int progress_func(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t, curl_off_t);
 
     std::string get_default_llm_destination();
+    void set_download_destination();
     void parse_headers();
     void perform_download();
     void mark_download_resumable();
