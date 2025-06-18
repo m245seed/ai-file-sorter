@@ -2,6 +2,7 @@
 #include "Utils.hpp"
 #include "DialogUtils.hpp"
 #include "ErrorMessages.hpp"
+#include <algorithm>
 #include <cstdlib>
 #include <curl/curl.h>
 #include <filesystem>
@@ -74,9 +75,9 @@ void LLMDownloader::parse_headers()
         
     CURLcode res = curl_easy_perform(curl);
 
-    double cl;
-    if (curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &cl) == CURLE_OK && cl > 0) {
-        real_content_length = static_cast<curl_off_t>(cl);
+    curl_off_t cl;
+    if (curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &cl) == CURLE_OK && cl > 0) {
+        real_content_length = cl;
     }
 
     curl_easy_cleanup(curl);
