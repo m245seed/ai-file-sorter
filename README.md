@@ -1,8 +1,8 @@
 # AI File Sorter
 
-[![Version](https://badgen.net/badge/version/0.8.3/green)](#) [![Donate via PayPal](https://badgen.net/badge/donate/PayPal/blue)](https://paypal.me/aifilesorter)
+[![Version](https://badgen.net/badge/version/0.9.0/green)](#) [![Donate via PayPal](https://badgen.net/badge/donate/PayPal/blue)](https://paypal.me/aifilesorter)
 
-AI File Sorter is a powerful, cross-platform desktop application that automates file organization. Featuring AI integration and a user-friendly GTK-based interface, it categorizes and sorts files and folders based on their names and extensions. The app intelligently assigns categories and, optionally, subcategories, which you can review and edit before confirming. Once approved, the necessary folders are created, and your files are sorted accordingly.
+AI File Sorter is a powerful, cross-platform desktop application that automates file organization. Featuring AI integration and a user-friendly GTK-based interface, it categorizes and sorts files and folders based on their names and extensions. The app intelligently assigns categories and, optionally, subcategories, which you can review and edit before confirming. Once approved, the necessary folders are created, and your files are sorted accordingly. The app uses local (LLaMa, Mistral) and remote (ChatGPT 4o-mini) LLMs for this task, depending on your choice.
 
 [![Download ai-file-sorter](https://a.fsdn.com/con/app/sf-download-button)](https://sourceforge.net/projects/ai-file-sorter/files/latest/download)
 
@@ -31,29 +31,38 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 
 ## Features
 
-- **AI-Powered Categorization**: Makes use of the ChatGPT API for intelligent file classification.
-- **Customizable Sorting Rules**: Automatically assigns categories and subcategories for granular organization.
-- **Intuitive Interface**: Lightweight, user-friendly interface for quick and efficient use.
-- **Cross-Platform Compatibility**: Available for Windows, MacOS, and Linux.
-- **Local Database Caching**: Stores categorized file data to improve performance and reduce API usage costs.
-- **Sorting Preview**: Review categorized files before confirming changes.
-- **Secure API Key Encryption**: Protects your API key with encryption for enhanced security.
-- **Update Notifications**: Notifies you of new versions, with updates being either optional or required.
+- **AI-Powered Categorization**: Classify files intelligently using either a **local LLM** (LLaMa, Mistral) or a
+                                 remote LLM (ChatGPT), depending on your preference.
+- **Offline-Friendly**: Use a local LLM to categorize files entirely e—no internet or API key required.
+  **Customizable Sorting Rules**: Automatically assign categories and subcategories for granular organization.
+- **Intuitive Interface**: Lightweight and user-friendly for fast, efficient use.
+- **Cross-Platform Compatibility**: Works on Windows, macOS, and Linux.
+- **Local Database Caching**: Speeds up repeated categorization and minimizes remote LLM usage costs.
+- **Sorting Preview**: See how files will be organized before confirming changes.
+- **Secure API Key Encryption**: When using the remote model, your API key is stored securely with encryption.
+- **Update Notifications**: Get notified about updates—with optional or required update flows.
 
 ---
 
 ## Requirements
 
-- **Operating System**: Windows, macOS, or Linux with a stable internet connection
-- **C++ Compiler**: A recent `g++` version (used in `Makefile`)  
-- **OpenAI API Key**: Required for AI-based categorization  
-- **Dependencies**: Installed during setup (see installation instructions below)  
+- **Operating System**: Windows, macOS, or Linux with a stable internet connection.
+- **C++ Compiler**: A recent `g++` version (used in `Makefile`).
+- **Platform specific requirements**:
+    - **Windows**: `MSYS2` / `MINGW64` with some requirements.
+    - **MacOS**: `brew` to install some requirements. `Xcode`.
+  
+  Optional:
+    - **Git**: For cloning this repository. You can alternatively download the repo in a zip archive.
+    - **OpenAI API Key**: Not needed for local LLMs, but needed to download the models.
 
 ---
 
 ## Installation
 
-Note: you will need to get an OpenAI API key and add a minimal balance to it for this program to work. The instructions on how to integrate your API key into the app are given below.
+File categorization with local LLMs is completely free of charge.
+
+If you want file categorization with ChatGPT, you will need to get an OpenAI API key and add a minimal balance to it for this program to work. Categorization is quite cheap, so $0.01 will be enough to categorize a relatively large number of files. The instructions on how to integrate your API key into the app are given below.
 
 ### Windows
 
@@ -83,9 +92,11 @@ You can also now launch `Git Bash` from Start Menu.
 ```bash
 pacman -S --needed mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gdk-pixbuf2 mingw-w64-x86_64-glib2 mingw-w64-x86_64-curl mingw-w64-x86_64-jsoncpp mingw-w64-x86_64-sqlite3 mingw-w64-x86_64-openssl mingw-w64-x86_64-libx11 mingw-w64-x86_64-libxi mingw-w64-x86_64-libxfixes mingw-w64-x86_64-cairo mingw-w64-x86_64-atk mingw-w64-x86_64-epoxy mingw-w64-x86_64-harfbuzz mingw-w64-x86_64-fontconfig mingw-w64-x86_64-libpng mingw-w64-x86_64-libjpeg-turbo mingw-w64-x86_64-libffi mingw-w64-x86_64-pcre mingw-w64-x86_64-libnghttp2 mingw-w64-x86_64-libidn2 mingw-w64-x86_64-librtmp mingw-w64-x86_64-libssh mingw-w64-x86_64-libpsl mingw-w64-x86_64-krb5 mingw-w64-x86_64-openldap mingw-w64-x86_64-brotli mingw-w64-x86_64-libxcb mingw-w64-x86_64-libxrandr mingw-w64-x86_64-libxinerama mingw-w64-x86_64-xkbcommon mingw-w64-x86_64-wayland mingw-w64-x86_64-libthai mingw-w64-x86_64-freetype mingw-w64-x86_64-graphite2 mingw-w64-x86_64-gnutls mingw-w64-x86_64-p11-kit mingw-w64-x86_64-xz mingw-w64-x86_64-lz4 mingw-w64-x86_64-libgcrypt mingw-w64-x86_64-systemd mingw-w64-x86_64-fmt mingw-w64-x86_64-spdlog make
 ```
-5. Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here. The app won't work otherwise.
+5. **Optional** (not needed if you want to use only local LLMs for file sorting). Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here. The app won't work otherwise.
 
-6. Go to `app/resources` and run `./compile-resources.sh`. Go back to the `app` directory.
+6. Go to `app/resources` and run `bash compile-resources.sh`. Go back to the `app` directory (`cd ..`).
+
+7. Run `./scripts/build_llama_windows.sh` to build llama.cpp.
 
 7. Run `make`, `make install` and `make clean`. The executable `AiFileSorter.exe` will be located in `C:\Program Files\AiFileSorter`. You can add the directory to `%PATH%`.
 

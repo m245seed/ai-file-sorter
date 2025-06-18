@@ -1,0 +1,3 @@
+[submodule "app/include/external/llama.cpp"]
+	path = app/include/external/llama.cpp
+	url = https://github.com/ggerganov/llama.cpp.git
