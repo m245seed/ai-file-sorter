@@ -26,6 +26,8 @@ public:
     static std::string get_default_llm_destination();
     static std::string get_file_name_from_url(std::string url);
     static std::string make_default_path_to_file_from_download_url(std::string url);
+    static bool is_cuda_available();
+    static bool is_opencl_available(std::vector<std::string>* device_names = nullptr);
 
 private:
     static int get_ngl(int vram_mb);

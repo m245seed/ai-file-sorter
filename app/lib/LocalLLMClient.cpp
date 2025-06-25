@@ -7,9 +7,15 @@
 #include <cstdio>
 #include <stdexcept>
 #include <regex>
+#include <iostream>
 
 
 void silent_logger(enum ggml_log_level, const char *, void *) {}
+
+
+void llama_debug_logger(enum ggml_log_level level, const char *text, void *user_data) {
+    std::cerr << "[llama.cpp] " << text;
+}
 
 
 LocalLLMClient::LocalLLMClient(const std::string& model_path)
@@ -18,11 +24,28 @@ LocalLLMClient::LocalLLMClient(const std::string& model_path)
     llama_log_set(silent_logger, nullptr);
     ggml_backend_load_all();
 
-    int ngl = Utils::determine_ngl_cuda();
 
     llama_model_params model_params = llama_model_default_params();
-    printf("ngl set to %d\n", ngl);
-    model_params.n_gpu_layers = ngl;
+
+    // int ngl;
+    if (Utils::is_cuda_available()) {
+        model_params.n_gpu_layers = Utils::determine_ngl_cuda();
+        std::cout << "ngl: " << model_params.n_gpu_layers << std::endl;
+    } else {
+        model_params.n_gpu_layers = 18;
+        printf("model_params.n_gpu_layers: %d\n", model_params.n_gpu_layers);
+        // model_params.n_gpu_layers = 0;
+        std::vector<std::string> devices;
+        if (Utils::is_opencl_available(&devices)) {
+            std::cout << "OpenCL is available.\n";
+            for (const auto& dev : devices)
+                std::cout << "Device: " << dev << "\n";
+        } else {
+            std::cout << "OpenCL not found.\n";
+        }
+    }
+    // ngl = model_params.n_gpu_layers;
+    // printf("ngl set to %d\n", ngl);
 
     model = llama_model_load_from_file(model_path.c_str(), model_params);
     if (!model) {

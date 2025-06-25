@@ -8,14 +8,19 @@ RESOURCES = resources/resources.c
 
 ifeq ($(UNAME), Linux)
     PLATFORM := Linux
-    CXXFLAGS += -DLINUX
+    CXXFLAGS += -DLINUX -DENABLE_CUDA -DENABLE_OPENCL
     TARGET := $(BIN_DIR)/aifilesorter
     INSTALL_DIR := /usr/local/bin
     RESOURCE_DIR := /usr/local/share/aifilesorter
-    LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lcommon \
-		-lggml -lggml-cpu -lggml-cuda -lggml-base -lggml-blas \
-  		-lopenblas -lcudart -lcuda -lcublas \
-  		-pthread -fopenmp
+    # LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lcommon \
+	# 	-lggml -lggml-cpu -lggml-cuda -lggml-base -lggml-blas \
+  	# 	-lopenblas -lcudart -lcuda -lcublas \
+  	# 	-pthread -fopenmp
+
+	LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lggml -pthread
+	LDFLAGS += -Wl,-rpath,'$$ORIGIN/../lib/precompiled'
+
+
 else ifeq ($(UNAME), Darwin)
     PLATFORM := MacOS
     CXXFLAGS += -DMACOS
@@ -23,9 +28,18 @@ else ifeq ($(UNAME), Darwin)
     INSTALL_DIR := /usr/local/bin
     RESOURCE_DIR := /usr/local/share/aifilesorter
     LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl
+
+    IS_APPLE_SILICON := $(shell sysctl -n machdep.cpu.brand_string | grep -i "Apple" > /dev/null && echo 1 || echo 0)
+
+    ifeq ($(IS_APPLE_SILICON), 1)
+        CXXFLAGS += -DENABLE_METAL
+    else
+        CXXFLAGS += -DENABLE_OPENCL
+    endif
+
 else ifeq ($(UNAME), MINGW32_NT)
     PLATFORM := Windows (32-bit)
-    CXXFLAGS += -DWINDOWS
+    CXXFLAGS += -DWINDOWS -DENABLE_OPENCL
     TARGET := $(BIN_DIR)/AI\ File\ Sorter.exe
     INSTALL_DIR := C:/Program\ Files\ (x86)/AiFileSorter
     RESOURCE_DIR := C:/Program\ Files\ (x86)/AiFileSorter/resources
@@ -33,9 +47,10 @@ else ifeq ($(UNAME), MINGW32_NT)
     RC_FILE = resources/exe_icon.rc
     RC_OBJ = resources/exe_icon.o
     LDFLAGS += -mwindows
+
 else ifeq ($(UNAME), MINGW64_NT)
     PLATFORM := Windows (64-bit)
-    CXXFLAGS += -DWINDOWS
+    CXXFLAGS += -DWINDOWS -DENABLE_OPENCL
     TARGET := $(BIN_DIR)/AiFileSorter.exe
     INSTALL_DIR := C:/Program\ Files/AiFileSorter
     RESOURCE_DIR := C:/Program\ Files/AiFileSorter/resources

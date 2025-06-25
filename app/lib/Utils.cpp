@@ -1,5 +1,6 @@
 #include "Utils.hpp"
-#include <cuda_runtime.h>
+#include <cstring>  // for memset
+#include <dlfcn.h>
 #include <filesystem>
 #include <stdlib.h>
 #include <string>
@@ -14,6 +15,20 @@
     #include <limits.h>
 #endif
 #include <iostream>
+#include <Types.hpp>
+#include <cstddef>
+
+// For OpenCL dynamic library loading
+typedef unsigned int cl_uint;
+typedef int cl_int;
+typedef size_t cl_device_type;
+typedef struct _cl_platform_id* cl_platform_id;
+typedef struct _cl_device_id* cl_device_id;
+
+// These constants are normally defined in cl.h
+constexpr cl_int CL_SUCCESS = 0;
+constexpr cl_device_type CL_DEVICE_TYPE_ALL = 0xFFFFFFFF;
+constexpr cl_uint CL_DEVICE_NAME = 0x102B;
 
 
 bool Utils::is_network_available()
@@ -127,6 +142,27 @@ std::string Utils::format_size(curl_off_t bytes)
 }
 
 
+// int Utils::determine_ngl_cuda()
+// {
+//     int device = 0;
+//     cudaDeviceProp prop;
+
+//     if (cudaGetDeviceProperties(&prop, device) != cudaSuccess) {
+//         std::cerr << "Warning: Unable to get CUDA device properties. Using safe fallback value.\n";
+//         return 0;
+//     }
+
+//     size_t total_mem_bytes = 0;
+//     if (cudaMemGetInfo(nullptr, &total_mem_bytes) != cudaSuccess) {
+//         total_mem_bytes = prop.totalGlobalMem;
+//     }
+
+//     int vram_mb = static_cast<int>(total_mem_bytes / (1024 * 1024));
+
+//     return get_ngl(vram_mb);
+// }
+
+
 int Utils::get_ngl(int vram_mb) {
     if (vram_mb < 2048) return 0;
 
@@ -135,23 +171,46 @@ int Utils::get_ngl(int vram_mb) {
 }
 
 
-int Utils::determine_ngl_cuda()
-{
-    int device = 0;
-    cudaDeviceProp prop;
-
-    if (cudaGetDeviceProperties(&prop, device) != cudaSuccess) {
-        std::cerr << "Warning: Unable to get CUDA device properties. Using safe fallback value.\n";
+int Utils::determine_ngl_cuda() {
+    void* lib = dlopen("libcudart.so", RTLD_LAZY);
+    if (!lib) {
+        std::cerr << "Failed to load libcudart.so\n";
         return 0;
     }
 
-    size_t total_mem_bytes = 0;
-    if (cudaMemGetInfo(nullptr, &total_mem_bytes) != cudaSuccess) {
-        total_mem_bytes = prop.totalGlobalMem;
+    using cudaGetDeviceProperties_t = int (*)(void*, int);
+    using cudaMemGetInfo_t = int (*)(size_t*, size_t*);
+
+    auto cudaGetDeviceProperties = (cudaGetDeviceProperties_t)dlsym(lib, "cudaGetDeviceProperties");
+    auto cudaMemGetInfo = (cudaMemGetInfo_t)dlsym(lib, "cudaMemGetInfo");
+
+    if (!cudaGetDeviceProperties) {
+        std::cerr << "Failed to load cudaGetDeviceProperties\n";
+        dlclose(lib);
+        return 0;
     }
 
-    int vram_mb = static_cast<int>(total_mem_bytes / (1024 * 1024));
+    constexpr size_t cudaDevicePropSize = 2560;  // large enough for any CUDA version <= 12.x
+    alignas(std::max_align_t) uint8_t prop_buffer[cudaDevicePropSize];
+    std::memset(prop_buffer, 0, sizeof(prop_buffer));
 
+    int device = 0;
+    if (cudaGetDeviceProperties(prop_buffer, device) != 0) {
+        std::cerr << "Warning: cudaGetDeviceProperties failed\n";
+        dlclose(lib);
+        return 0;
+    }
+
+    size_t total_mem_bytes = *reinterpret_cast<size_t*>(prop_buffer);
+
+    if (cudaMemGetInfo) {
+        size_t free_bytes = 0;
+        cudaMemGetInfo(&free_bytes, &total_mem_bytes);  // override total memory with accurate value
+    }
+
+    dlclose(lib);
+
+    int vram_mb = static_cast<int>(total_mem_bytes / (1024 * 1024));
     return get_ngl(vram_mb);
 }
 
@@ -206,4 +265,83 @@ std::string Utils::make_default_path_to_file_from_download_url(std::string url)
     std::string filename = get_file_name_from_url(url);
     std::string path_to_file = (std::filesystem::path(get_default_llm_destination()) / filename).string();
     return path_to_file;
+}
+
+
+bool Utils::is_cuda_available() {
+    void* handle = dlopen("libcudart.so", RTLD_LAZY);
+    if (!handle) {
+        std::cout << "dlopen(\"libcudart.so\", RTLD_LAZY); returned false" << std::endl;
+        return false;
+    }
+
+    typedef int (*cudaGetDeviceCount_t)(int*);
+    auto cudaGetDeviceCount = (cudaGetDeviceCount_t)dlsym(handle, "cudaGetDeviceCount");
+    if (!cudaGetDeviceCount) {
+        dlclose(handle);
+        printf("!cudaGetDeviceCount evaluated to true\n");
+        return false;
+    }
+
+    int count = 0;
+    int status = cudaGetDeviceCount(&count);
+    if (status != 0) {
+        std::cerr << "CUDA error: " << status << " from cudaGetDeviceCount\n";
+        dlclose(handle);
+        return false;
+    }
+    if (count == 0) {
+        std::cerr << "No CUDA devices found\n";
+        dlclose(handle);
+        return false;
+    }
+
+    dlclose(handle);
+    return true;
+}
+
+
+bool Utils::is_opencl_available(std::vector<std::string>* device_names)
+{
+    void* handle = dlopen("libOpenCL.so", RTLD_LAZY);
+    if (!handle) return false;
+
+    using clGetPlatformIDs_t = cl_int (*)(cl_uint, cl_platform_id*, cl_uint*);
+    using clGetDeviceIDs_t = cl_int (*)(cl_platform_id, cl_device_type, cl_uint, cl_device_id*, cl_uint*);
+    using clGetDeviceInfo_t = cl_int (*)(cl_device_id, cl_uint, size_t, void*, size_t*);
+
+    auto clGetPlatformIDs = reinterpret_cast<clGetPlatformIDs_t>(dlsym(handle, "clGetPlatformIDs"));
+    auto clGetDeviceIDs = reinterpret_cast<clGetDeviceIDs_t>(dlsym(handle, "clGetDeviceIDs"));
+    auto clGetDeviceInfo = reinterpret_cast<clGetDeviceInfo_t>(dlsym(handle, "clGetDeviceInfo"));
+
+    if (!clGetPlatformIDs || !clGetDeviceIDs || !clGetDeviceInfo) {
+        dlclose(handle);
+        return false;
+    }
+
+    cl_platform_id platform;
+    cl_uint num_platforms = 0;
+    if (clGetPlatformIDs(1, &platform, &num_platforms) != CL_SUCCESS || num_platforms == 0) {
+        dlclose(handle);
+        return false;
+    }
+
+    cl_device_id devices[4];
+    cl_uint num_devices = 0;
+    if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 4, devices, &num_devices) != CL_SUCCESS || num_devices == 0) {
+        dlclose(handle);
+        return false;
+    }
+
+    if (device_names) {
+        for (cl_uint i = 0; i < num_devices; ++i) {
+            char name[256];
+            if (clGetDeviceInfo(devices[i], CL_DEVICE_NAME, sizeof(name), name, nullptr) == CL_SUCCESS) {
+                device_names->emplace_back(name);
+            }
+        }
+    }
+
+    dlclose(handle);
+    return true;
 }

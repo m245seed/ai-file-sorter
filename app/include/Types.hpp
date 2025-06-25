@@ -57,4 +57,8 @@ inline FileScanOptions operator~(FileScanOptions a) {
     return static_cast<FileScanOptions>(~static_cast<int>(a));
 }
 
+struct cudaDeviceProp {
+    size_t totalGlobalMem;
+};
+
 #endif
