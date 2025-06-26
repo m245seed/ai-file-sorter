@@ -8,15 +8,10 @@ RESOURCES = resources/resources.c
 
 ifeq ($(UNAME), Linux)
     PLATFORM := Linux
-    CXXFLAGS += -DLINUX -DENABLE_CUDA -DENABLE_OPENCL
+    CXXFLAGS += -DLINUX
     TARGET := $(BIN_DIR)/aifilesorter
     INSTALL_DIR := /usr/local/bin
     RESOURCE_DIR := /usr/local/share/aifilesorter
-    # LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lcommon \
-	# 	-lggml -lggml-cpu -lggml-cuda -lggml-base -lggml-blas \
-  	# 	-lopenblas -lcudart -lcuda -lcublas \
-  	# 	-pthread -fopenmp
-
 	LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lggml -pthread
 	LDFLAGS += -Wl,-rpath,'$$ORIGIN/../lib/precompiled'
 
@@ -27,38 +22,29 @@ else ifeq ($(UNAME), Darwin)
     TARGET := $(BIN_DIR)/aifilesorter
     INSTALL_DIR := /usr/local/bin
     RESOURCE_DIR := /usr/local/share/aifilesorter
-    LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl
 
     IS_APPLE_SILICON := $(shell sysctl -n machdep.cpu.brand_string | grep -i "Apple" > /dev/null && echo 1 || echo 0)
 
     ifeq ($(IS_APPLE_SILICON), 1)
-        CXXFLAGS += -DENABLE_METAL
-    else
-        CXXFLAGS += -DENABLE_OPENCL
+        # CXXFLAGS += -DENABLE_METAL
     endif
 
-else ifeq ($(UNAME), MINGW32_NT)
-    PLATFORM := Windows (32-bit)
-    CXXFLAGS += -DWINDOWS -DENABLE_OPENCL
-    TARGET := $(BIN_DIR)/AI\ File\ Sorter.exe
-    INSTALL_DIR := C:/Program\ Files\ (x86)/AiFileSorter
-    RESOURCE_DIR := C:/Program\ Files\ (x86)/AiFileSorter/resources
-    WINDRES = windres
-    RC_FILE = resources/exe_icon.rc
-    RC_OBJ = resources/exe_icon.o
-    LDFLAGS += -mwindows
+    LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lggml -pthread
+    LDFLAGS += -Wl,-rpath,'$$ORIGIN/../lib/precompiled'
+
 
 else ifeq ($(UNAME), MINGW64_NT)
     PLATFORM := Windows (64-bit)
-    CXXFLAGS += -DWINDOWS -DENABLE_OPENCL
+    CXXFLAGS += -DWINDOWS
     TARGET := $(BIN_DIR)/AiFileSorter.exe
     INSTALL_DIR := C:/Program\ Files/AiFileSorter
     RESOURCE_DIR := C:/Program\ Files/AiFileSorter/resources
     WINDRES = windres
     RC_FILE = resources/exe_icon.rc
     RC_OBJ = resources/exe_icon.o
-    LDFLAGS += -mwindows -ljsoncpp -lcrypto -lcurl -lspdlog -lsqlite3 -lssl -lfmt
-endif
+
+    LDFLAGS += -mwindows -ljsoncpp -lcrypto -lcurl -lspdlog -lsqlite3 -lssl -lfmt -lllama -lggml
+
 
 # Compiler and flags
 CXX = g++
