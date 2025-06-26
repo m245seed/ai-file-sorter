@@ -44,7 +44,7 @@ else ifeq ($(UNAME), MINGW64_NT)
     RC_OBJ = resources/exe_icon.o
 
     LDFLAGS += -mwindows -ljsoncpp -lcrypto -lcurl -lspdlog -lsqlite3 -lssl -lfmt -lllama -lggml
-
+endif
 
 # Compiler and flags
 CXX = g++
@@ -78,11 +78,6 @@ $(OBJ_DIR)/main.o: main.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE_DIRS) -c $< -o $@
 
 # Windows resource compilation
-ifeq ($(PLATFORM), Windows (32-bit))
-$(RC_OBJ): $(RC_FILE)
-	$(WINDRES) -i $< -o $@
-endif
-
 ifeq ($(PLATFORM), Windows (64-bit))
 $(RC_OBJ): $(RC_FILE)
 	$(WINDRES) -i $< -o $@
