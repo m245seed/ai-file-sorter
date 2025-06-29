@@ -1,6 +1,5 @@
 #include "Utils.hpp"
 #include <cstring>  // for memset
-#include <dlfcn.h>
 #include <filesystem>
 #include <stdlib.h>
 #include <string>
@@ -8,9 +7,11 @@
 #ifdef _WIN32
     #include <windows.h>
 #elif __linux__
-    #include <unistd.h>
+    #include <dlfcn.h>
     #include <limits.h>
+    #include <unistd.h>
 #elif __APPLE__
+    #include <dlfcn.h>
     #include <mach-o/dyld.h>
     #include <limits.h>
 #endif
@@ -29,6 +30,38 @@ typedef struct _cl_device_id* cl_device_id;
 constexpr cl_int CL_SUCCESS = 0;
 constexpr cl_device_type CL_DEVICE_TYPE_ALL = 0xFFFFFFFF;
 constexpr cl_uint CL_DEVICE_NAME = 0x102B;
+
+
+// Shortcuts for loading libraries on different OSes
+#ifdef _WIN32
+    using LibraryHandle = HMODULE;
+
+    LibraryHandle loadLibrary(const char* name) {
+        return LoadLibraryA(name);
+    }
+
+    void* getSymbol(LibraryHandle lib, const char* symbol) {
+        return reinterpret_cast<void*>(GetProcAddress(lib, symbol));
+    }
+
+    void closeLibrary(LibraryHandle lib) {
+        FreeLibrary(lib);
+    }
+#else
+    using LibraryHandle = void*;
+
+    LibraryHandle loadLibrary(const char* name) {
+        return dlopen(name, RTLD_LAZY);
+    }
+
+    void* getSymbol(LibraryHandle lib, const char* symbol) {
+        return dlsym(lib, symbol);
+    }
+
+    void closeLibrary(LibraryHandle lib) {
+        dlclose(lib);
+    }
+#endif
 
 
 bool Utils::is_network_available()
@@ -142,27 +175,6 @@ std::string Utils::format_size(curl_off_t bytes)
 }
 
 
-// int Utils::determine_ngl_cuda()
-// {
-//     int device = 0;
-//     cudaDeviceProp prop;
-
-//     if (cudaGetDeviceProperties(&prop, device) != cudaSuccess) {
-//         std::cerr << "Warning: Unable to get CUDA device properties. Using safe fallback value.\n";
-//         return 0;
-//     }
-
-//     size_t total_mem_bytes = 0;
-//     if (cudaMemGetInfo(nullptr, &total_mem_bytes) != cudaSuccess) {
-//         total_mem_bytes = prop.totalGlobalMem;
-//     }
-
-//     int vram_mb = static_cast<int>(total_mem_bytes / (1024 * 1024));
-
-//     return get_ngl(vram_mb);
-// }
-
-
 int Utils::get_ngl(int vram_mb) {
     if (vram_mb < 2048) return 0;
 
@@ -269,17 +281,22 @@ std::string Utils::make_default_path_to_file_from_download_url(std::string url)
 
 
 bool Utils::is_cuda_available() {
-    void* handle = dlopen("libcudart.so", RTLD_LAZY);
+#ifdef _WIN32
+    std::string dllName = get_cudart_dll_name();
+    LibraryHandle handle = loadLibrary(dllName.c_str());
+    std::cerr << "Trying to load: " << dllName << std::endl;
+#else
+    LibraryHandle handle = loadLibrary("libcudart.so");
+#endif
+
     if (!handle) {
-        std::cout << "dlopen(\"libcudart.so\", RTLD_LAZY); returned false" << std::endl;
         return false;
     }
 
     typedef int (*cudaGetDeviceCount_t)(int*);
-    auto cudaGetDeviceCount = (cudaGetDeviceCount_t)dlsym(handle, "cudaGetDeviceCount");
+    auto cudaGetDeviceCount = (cudaGetDeviceCount_t)getSymbol(handle, "cudaGetDeviceCount");
     if (!cudaGetDeviceCount) {
-        dlclose(handle);
-        printf("!cudaGetDeviceCount evaluated to true\n");
+        closeLibrary(handle);
         return false;
     }
 
@@ -287,49 +304,54 @@ bool Utils::is_cuda_available() {
     int status = cudaGetDeviceCount(&count);
     if (status != 0) {
         std::cerr << "CUDA error: " << status << " from cudaGetDeviceCount\n";
-        dlclose(handle);
+        closeLibrary(handle);
         return false;
     }
     if (count == 0) {
         std::cerr << "No CUDA devices found\n";
-        dlclose(handle);
+        closeLibrary(handle);
         return false;
     }
 
-    dlclose(handle);
+    closeLibrary(handle);
     return true;
 }
 
 
 bool Utils::is_opencl_available(std::vector<std::string>* device_names)
 {
-    void* handle = dlopen("libOpenCL.so", RTLD_LAZY);
+#ifdef _WIN32
+    LibraryHandle handle = loadLibrary("OpenCL.dll");
+#else
+    LibraryHandle handle = loadLibrary("libOpenCL.so");
+#endif
+
     if (!handle) return false;
 
     using clGetPlatformIDs_t = cl_int (*)(cl_uint, cl_platform_id*, cl_uint*);
     using clGetDeviceIDs_t = cl_int (*)(cl_platform_id, cl_device_type, cl_uint, cl_device_id*, cl_uint*);
     using clGetDeviceInfo_t = cl_int (*)(cl_device_id, cl_uint, size_t, void*, size_t*);
 
-    auto clGetPlatformIDs = reinterpret_cast<clGetPlatformIDs_t>(dlsym(handle, "clGetPlatformIDs"));
-    auto clGetDeviceIDs = reinterpret_cast<clGetDeviceIDs_t>(dlsym(handle, "clGetDeviceIDs"));
-    auto clGetDeviceInfo = reinterpret_cast<clGetDeviceInfo_t>(dlsym(handle, "clGetDeviceInfo"));
+    auto clGetPlatformIDs = reinterpret_cast<clGetPlatformIDs_t>(getSymbol(handle, "clGetPlatformIDs"));
+    auto clGetDeviceIDs = reinterpret_cast<clGetDeviceIDs_t>(getSymbol(handle, "clGetDeviceIDs"));
+    auto clGetDeviceInfo = reinterpret_cast<clGetDeviceInfo_t>(getSymbol(handle, "clGetDeviceInfo"));
 
     if (!clGetPlatformIDs || !clGetDeviceIDs || !clGetDeviceInfo) {
-        dlclose(handle);
+        closeLibrary(handle);
         return false;
     }
 
     cl_platform_id platform;
     cl_uint num_platforms = 0;
     if (clGetPlatformIDs(1, &platform, &num_platforms) != CL_SUCCESS || num_platforms == 0) {
-        dlclose(handle);
+        closeLibrary(handle);
         return false;
     }
 
     cl_device_id devices[4];
     cl_uint num_devices = 0;
     if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 4, devices, &num_devices) != CL_SUCCESS || num_devices == 0) {
-        dlclose(handle);
+        closeLibrary(handle);
         return false;
     }
 
@@ -342,6 +364,99 @@ bool Utils::is_opencl_available(std::vector<std::string>* device_names)
         }
     }
 
-    dlclose(handle);
+    closeLibrary(handle);
+    return true;
+}
+
+
+#ifdef _WIN32
+int Utils::get_installed_cuda_runtime_version() {
+    HMODULE hCuda = LoadLibraryA("nvcuda.dll");
+    if (!hCuda) return 0;
+
+    using cudaDriverGetVersion_t = int(__cdecl *)(int*);
+    auto cudaDriverGetVersion = reinterpret_cast<cudaDriverGetVersion_t>(
+        GetProcAddress(hCuda, "cuDriverGetVersion")
+    );
+
+    if (!cudaDriverGetVersion) {
+        FreeLibrary(hCuda);
+        return 0;
+    }
+
+    int version = 0;
+    if (cudaDriverGetVersion(&version) != 0) {
+        FreeLibrary(hCuda);
+        return 0;
+    }
+
+    FreeLibrary(hCuda);
+    return version; // e.g., 12080 for CUDA 12.8
+}
+#endif
+
+
+#ifdef _WIN32
+std::string Utils::get_cudart_dll_name() {
+    int version = get_installed_cuda_runtime_version();
+    if (version == 0) return "";
+
+    int major = version / 1000;        // e.g., 12
+    int minor = (version % 1000) / 10; // e.g., 8
+
+    char buffer[32];
+    std::snprintf(buffer, sizeof(buffer), "cudart64_%d%d.dll", major, minor);
+    return buffer; // e.g., "cudart64_128.dll"
+}
+#endif
+
+
+bool Utils::is_opencl_available(std::vector<std::string>* device_names)
+{
+#ifdef _WIN32
+    LibraryHandle handle = loadLibrary("OpenCL.dll");
+#else
+    LibraryHandle handle = loadLibrary("libOpenCL.so");
+#endif
+
+    if (!handle) return false;
+
+    using clGetPlatformIDs_t = cl_int (*)(cl_uint, cl_platform_id*, cl_uint*);
+    using clGetDeviceIDs_t = cl_int (*)(cl_platform_id, cl_device_type, cl_uint, cl_device_id*, cl_uint*);
+    using clGetDeviceInfo_t = cl_int (*)(cl_device_id, cl_uint, size_t, void*, size_t*);
+
+    auto clGetPlatformIDs = reinterpret_cast<clGetPlatformIDs_t>(getSymbol(handle, "clGetPlatformIDs"));
+    auto clGetDeviceIDs = reinterpret_cast<clGetDeviceIDs_t>(getSymbol(handle, "clGetDeviceIDs"));
+    auto clGetDeviceInfo = reinterpret_cast<clGetDeviceInfo_t>(getSymbol(handle, "clGetDeviceInfo"));
+
+    if (!clGetPlatformIDs || !clGetDeviceIDs || !clGetDeviceInfo) {
+        closeLibrary(handle);
+        return false;
+    }
+
+    cl_platform_id platform;
+    cl_uint num_platforms = 0;
+    if (clGetPlatformIDs(1, &platform, &num_platforms) != CL_SUCCESS || num_platforms == 0) {
+        closeLibrary(handle);
+        return false;
+    }
+
+    cl_device_id devices[4];
+    cl_uint num_devices = 0;
+    if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 4, devices, &num_devices) != CL_SUCCESS || num_devices == 0) {
+        closeLibrary(handle);
+        return false;
+    }
+
+    if (device_names) {
+        for (cl_uint i = 0; i < num_devices; ++i) {
+            char name[256];
+            if (clGetDeviceInfo(devices[i], CL_DEVICE_NAME, sizeof(name), name, nullptr) == CL_SUCCESS) {
+                device_names->emplace_back(name);
+            }
+        }
+    }
+
+    closeLibrary(handle);
     return true;
 }
