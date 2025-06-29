@@ -184,32 +184,41 @@ int Utils::get_ngl(int vram_mb) {
 
 
 int Utils::determine_ngl_cuda() {
-    void* lib = dlopen("libcudart.so", RTLD_LAZY);
+#ifdef _WIN32
+    std::string dllName = get_cudart_dll_name();  // returns std::string
+    LibraryHandle lib = loadLibrary(dllName.c_str());
+#else
+    const char* dllName = "libcudart.so";
+    LibraryHandle lib = loadLibrary(dllName);
+#endif
+
     if (!lib) {
-        std::cerr << "Failed to load libcudart.so\n";
+        std::cerr << "Failed to load CUDA runtime library: " << dllName << "\n";
         return 0;
     }
 
     using cudaGetDeviceProperties_t = int (*)(void*, int);
     using cudaMemGetInfo_t = int (*)(size_t*, size_t*);
 
-    auto cudaGetDeviceProperties = (cudaGetDeviceProperties_t)dlsym(lib, "cudaGetDeviceProperties");
-    auto cudaMemGetInfo = (cudaMemGetInfo_t)dlsym(lib, "cudaMemGetInfo");
+    auto cudaGetDeviceProperties = reinterpret_cast<cudaGetDeviceProperties_t>(
+        getSymbol(lib, "cudaGetDeviceProperties"));
+    auto cudaMemGetInfo = reinterpret_cast<cudaMemGetInfo_t>(
+        getSymbol(lib, "cudaMemGetInfo"));
 
     if (!cudaGetDeviceProperties) {
-        std::cerr << "Failed to load cudaGetDeviceProperties\n";
-        dlclose(lib);
+        std::cerr << "Failed to load symbol: cudaGetDeviceProperties\n";
+        closeLibrary(lib);
         return 0;
     }
 
-    constexpr size_t cudaDevicePropSize = 2560;  // large enough for any CUDA version <= 12.x
+    constexpr size_t cudaDevicePropSize = 2560;
     alignas(std::max_align_t) uint8_t prop_buffer[cudaDevicePropSize];
     std::memset(prop_buffer, 0, sizeof(prop_buffer));
 
     int device = 0;
     if (cudaGetDeviceProperties(prop_buffer, device) != 0) {
         std::cerr << "Warning: cudaGetDeviceProperties failed\n";
-        dlclose(lib);
+        closeLibrary(lib);
         return 0;
     }
 
@@ -217,10 +226,12 @@ int Utils::determine_ngl_cuda() {
 
     if (cudaMemGetInfo) {
         size_t free_bytes = 0;
-        cudaMemGetInfo(&free_bytes, &total_mem_bytes);  // override total memory with accurate value
+        if (cudaMemGetInfo(&free_bytes, &total_mem_bytes) != 0) {
+            std::cerr << "Warning: cudaMemGetInfo failed\n";
+        }
     }
 
-    dlclose(lib);
+    closeLibrary(lib);
 
     int vram_mb = static_cast<int>(total_mem_bytes / (1024 * 1024));
     return get_ngl(vram_mb);
