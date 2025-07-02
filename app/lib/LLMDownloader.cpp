@@ -62,6 +62,7 @@ size_t LLMDownloader::discard_callback(char* ptr, size_t size, size_t nmemb, voi
 void LLMDownloader::parse_headers()
 {
     CURL* curl = curl_easy_init();
+
     if (!curl) {
         throw std::runtime_error("Failed to initialize CURL");
     }
@@ -182,6 +183,7 @@ void LLMDownloader::start_download(std::function<void(double)> progress_cb,
 void LLMDownloader::perform_download()
 {
     CURL* curl = curl_easy_init();
+    
     if (!curl) throw std::runtime_error("Failed to initialize curl");
 
     long resume_from = determine_resume_offset();
@@ -232,6 +234,11 @@ void LLMDownloader::notify_download_complete()
 
 void LLMDownloader::setup_common_curl_options(CURL* curl)
 {
+#ifdef _WIN32
+    std::string cert_path = std::filesystem::current_path().string() + "\\certs\\cacert.pem";
+    curl_easy_setopt(curl, CURLOPT_CAINFO, cert_path.c_str());
+#endif
+
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);

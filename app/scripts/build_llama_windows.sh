@@ -17,15 +17,22 @@ cd "$LLAMA_DIR"
 rm -rf build
 mkdir -p build
 cmake -S . -B build \
-  -DGGML_CUDA=OFF \
-  -DBUILD_SHARED_LIBS=OFF \
-  -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS \
-  -DGGML_OPENCL=ON -DGGML_VULKAN=OFF \
+  -DGGML_CUDA=ON \
+  -DCUDA_TOOLKIT_ROOT_DIR="/e/cuda" \
+  -DCUDA_INCLUDE_DIRS="/e/cuda/include" \
+  -DCUDA_CUDART_LIBRARY="/e/cuda/lib/x64/cudart.lib" \
+  -DBUILD_SHARED_LIBS=ON \
+  -DGGML_BLAS=ON \
+  -DGGML_BLAS_VENDOR=OpenBLAS \
+  -DBLAS_LIBRARIES="/mingw64/lib/libopenblas.a" \
+  -DBLAS_INCLUDE_DIR="/mingw64/include/openblas/" \
+  -DGGML_OPENCL=ON \
+  -DGGML_VULKAN=OFF \
   -DGGML_SYCL=OFF \
   -DGGML_HIP=OFF \
   -DGGML_KLEIDIAI=OFF
 
-cmake --build build --config Release -- -j$(nproc 2>/dev/null || echo 4)
+cmake --build build --config Release -- /m
 
 mkdir -p "$PRECOMPILED_LIBS_DIR"
 cp -f build/src/libllama.a "$PRECOMPILED_LIBS_DIR" || true

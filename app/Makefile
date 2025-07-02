@@ -26,7 +26,7 @@ else ifeq ($(UNAME), Darwin)
     IS_APPLE_SILICON := $(shell sysctl -n machdep.cpu.brand_string | grep -i "Apple" > /dev/null && echo 1 || echo 0)
 
     ifeq ($(IS_APPLE_SILICON), 1)
-        # CXXFLAGS += -DENABLE_METAL
+        CXXFLAGS += -DENABLE_METAL
     endif
 
     LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lggml -pthread
@@ -37,8 +37,8 @@ else ifeq ($(UNAME), MINGW64_NT)
     PLATFORM := Windows (64-bit)
     CXXFLAGS += -DWINDOWS
     TARGET := $(BIN_DIR)/AiFileSorter.exe
-    INSTALL_DIR := C:/Program\ Files/AiFileSorter
-    RESOURCE_DIR := C:/Program\ Files/AiFileSorter/resources
+	INSTALL_DIR := "C:/Program Files/Ai File Sorter"
+	RESOURCE_DIR := "C:/Program Files/Ai File Sorter/resources"
     WINDRES = windres
     RC_FILE = resources/exe_icon.rc
     RC_OBJ = resources/exe_icon.o

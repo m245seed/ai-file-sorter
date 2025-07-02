@@ -268,9 +268,9 @@ std::string Updater::fetch_update_metadata() const {
     CURLcode res;
     std::string response_string;
 
-    // Set curl options
     #ifdef _WIN32
         std::string cert_path = std::filesystem::current_path().string() + "\\certs\\cacert.pem";
+        std::cout << "Resolved cert path: " << cert_path << std::endl;
         curl_easy_setopt(curl, CURLOPT_CAINFO, cert_path.c_str());
     #endif
 
