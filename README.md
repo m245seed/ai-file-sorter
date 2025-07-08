@@ -77,6 +77,8 @@ You can also now launch `Git Bash` from Start Menu.
 ##### Clone the repository
 
     git clone https://github.com/hyperfield/ai-file-sorter.git
+    cd ai-file-sorter
+    git submodule update --init --recursive --remote
 
 ##### Navigate into the directory
 
@@ -84,21 +86,46 @@ You can also now launch `Git Bash` from Start Menu.
 
 #### Compile the app
 
-1. Install and launch [MSYS2](https://www.msys2.org/).
+**Important**: Install all the packages specified below in their default installation directories. Otherwise, you'll need to adjust the paths in `build_llama_windows.ps1` and `Makefile`. 
+
+1. Install [MSYS2](https://www.msys2.org/). Make sure to launch *as Administrator* `MSYS2 MINGW64`, **NOT** `MSYS2 MSYS`. If you don't launch it as Administrator, `make install` won't work. You may run it as regular user if you don't need to use `make install` in the last step.
 2. Update MSYS2 packages: `pacman -Syu`.
-3. Install the required toolchain: `pacman -S mingw-w64-x86_64-toolchain`.
-4. Install dependencies:
+3. Install dependencies:
    
 ```bash
-pacman -S --needed mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gdk-pixbuf2 mingw-w64-x86_64-glib2 mingw-w64-x86_64-curl mingw-w64-x86_64-jsoncpp mingw-w64-x86_64-sqlite3 mingw-w64-x86_64-openssl mingw-w64-x86_64-libx11 mingw-w64-x86_64-libxi mingw-w64-x86_64-libxfixes mingw-w64-x86_64-cairo mingw-w64-x86_64-atk mingw-w64-x86_64-epoxy mingw-w64-x86_64-harfbuzz mingw-w64-x86_64-fontconfig mingw-w64-x86_64-libpng mingw-w64-x86_64-libjpeg-turbo mingw-w64-x86_64-libffi mingw-w64-x86_64-pcre mingw-w64-x86_64-libnghttp2 mingw-w64-x86_64-libidn2 mingw-w64-x86_64-librtmp mingw-w64-x86_64-libssh mingw-w64-x86_64-libpsl mingw-w64-x86_64-krb5 mingw-w64-x86_64-openldap mingw-w64-x86_64-brotli mingw-w64-x86_64-libxcb mingw-w64-x86_64-libxrandr mingw-w64-x86_64-libxinerama mingw-w64-x86_64-xkbcommon mingw-w64-x86_64-wayland mingw-w64-x86_64-libthai mingw-w64-x86_64-freetype mingw-w64-x86_64-graphite2 mingw-w64-x86_64-gnutls mingw-w64-x86_64-p11-kit mingw-w64-x86_64-xz mingw-w64-x86_64-lz4 mingw-w64-x86_64-libgcrypt mingw-w64-x86_64-systemd mingw-w64-x86_64-fmt mingw-w64-x86_64-spdlog make
+pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkmm3 mingw-w64-x86_64-jsoncpp mingw-w64-x86_64-pcre mingw-w64-x86_64-libidn2 mingw-w64-x86_64-libssh mingw-w64-x86_64-libpsl mingw-w64-x86_64-openldap mingw-w64-x86_64-gnutls mingw-w64-x86_64-lz4 mingw-w64-x86_64-libgcrypt mingw-w64-x86_64-fmt mingw-w64-x86_64-spdlog mingw-w64-x86_64-openblas pacman -S mingw-w64-x86_64-curl make
 ```
-5. **Optional** (not needed if you want to use only local LLMs for file sorting). Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here. The app won't work otherwise.
 
-6. Go to `app/resources` and run `bash compile-resources.sh`. Go back to the `app` directory (`cd ..`).
+4. Install [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/).
+   **Imporant**: Be sure to check the `Dekstop development with C++` workflow, under which the `Windows 1x SDK` (depending on your Windows version) should be checked.
 
-7. Run `./scripts/build_llama_windows.sh` to build llama.cpp.
+5. **Optional**: If you want to compile AI File Sorter with CUDA (for Nvidia GPUs only) then download and install [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads). CUDA significantly increases the compute speed of local LLMs. Otherwise, AI File Sorter will fall back on either OpenCL or OpenBLAS (CPU only, but faster than without it).
 
-7. Run `make`, `make install` and `make clean`. The executable `AiFileSorter.exe` will be located in `C:\Program Files\AiFileSorter`. You can add the directory to `%PATH%`.
+6. Install [Python](https://www.python.org/downloads/).
+
+7. Launch `Developer PowerShell for VS 2022` and `cd path\to\cloned\github\repo\app\scripts` (e.g., `cd C:\Users\username\repos\ai-file-sorter\app\scripts`). Check that the script `build_llama.windows.ps1` contains the paths in accordance with your versions of CUDA and Visual Studio tools. In particular, check the version numbers in these lines:
+
+    ```
+    $cudaRoot = "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9"
+    -DCMAKE_C_COMPILER="C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe" `
+    -DCMAKE_CXX_COMPILER="C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe"
+    ```
+
+    **Important**: If you don't have an Nvidia GPU or if you didn't install the CUDA Toolkit in step 5, change `-DGGML_CUDA=ON` to `-DGGML_CUDA=OFF` in this script.
+
+    Save any changes.
+
+8. In `Developer PowerShell for VS 2022`, run
+
+    ```
+    powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1
+    ```
+
+9. **Optional** (not needed if you want to use only local LLMs for file sorting). Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here. The app won't work otherwise.
+
+10. Go back the `MSYS2 MINGW64` shell (ensure you ran it *as Administrator*, otherwise `make install` won't work). Go to the cloned repo's `app/resources` path (e.g., `/c/Users/username/repos/ai-file-sorter/app/resources`) and run `bash compile-resources.sh`. Go to the `app` directory (`cd ..`).
+
+11. Run `make`, `make install` and `make clean`. The executable `AiFileSorter.exe` will be located in `C:\Program Files\AiFileSorter`. You can add the directory to `%PATH%`.
 
 ---
 

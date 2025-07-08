@@ -84,4 +84,7 @@ todos_md/
 # Mac files
 .DS_Store
 
+# Ignore llama headers (generated or from external)
+app/include/llama/*.h
+
 # End of https://www.toptal.com/developers/gitignore/api/c++,visualstudiocode

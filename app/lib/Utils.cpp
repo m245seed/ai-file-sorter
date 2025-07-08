@@ -185,7 +185,7 @@ int Utils::get_ngl(int vram_mb) {
 
 int Utils::determine_ngl_cuda() {
 #ifdef _WIN32
-    std::string dllName = get_cudart_dll_name();  // returns std::string
+    std::string dllName = get_cudart_dll_name();
     LibraryHandle lib = loadLibrary(dllName.c_str());
 #else
     const char* dllName = "libcudart.so";
@@ -291,21 +291,33 @@ std::string Utils::make_default_path_to_file_from_download_url(std::string url)
 }
 
 
-bool Utils::is_cuda_available() {
+bool Utils::is_cuda_available()
+{
+    std::cerr << "[CUDA] Checking CUDA availability..." << std::endl;
+
 #ifdef _WIN32
     std::string dllName = get_cudart_dll_name();
+
+    if (dllName.empty()) {
+        std::cerr << "[CUDA] DLL name is empty — likely failed to get CUDA version." << std::endl;
+        return false;
+    }
+
     LibraryHandle handle = loadLibrary(dllName.c_str());
-    std::cerr << "Trying to load: " << dllName << std::endl;
+    std::cerr << "[CUDA] Trying to load: " << dllName << " => " << (handle ? "Success" : "Failure") << std::endl;
 #else
     LibraryHandle handle = loadLibrary("libcudart.so");
 #endif
 
     if (!handle) {
+        std::cerr << "[CUDA] Failed to load CUDA runtime library." << std::endl;
         return false;
     }
 
     typedef int (*cudaGetDeviceCount_t)(int*);
     auto cudaGetDeviceCount = (cudaGetDeviceCount_t)getSymbol(handle, "cudaGetDeviceCount");
+    std::cerr << "[CUDA] Lookup cudaGetDeviceCount symbol: " << (cudaGetDeviceCount ? "Found" : "Not Found") << std::endl;
+
     if (!cudaGetDeviceCount) {
         closeLibrary(handle);
         return false;
@@ -313,26 +325,33 @@ bool Utils::is_cuda_available() {
 
     int count = 0;
     int status = cudaGetDeviceCount(&count);
+    std::cerr << "[CUDA] cudaGetDeviceCount returned status: " << status << ", device count: " << count << std::endl;
+
     if (status != 0) {
-        std::cerr << "CUDA error: " << status << " from cudaGetDeviceCount\n";
+        std::cerr << "[CUDA] CUDA error: " << status << " from cudaGetDeviceCount\n";
         closeLibrary(handle);
         return false;
     }
     if (count == 0) {
-        std::cerr << "No CUDA devices found\n";
+        std::cerr << "[CUDA] No CUDA devices found\n";
         closeLibrary(handle);
         return false;
     }
 
+    std::cerr << "[CUDA] CUDA is available and " << count << " device(s) found." << std::endl;
     closeLibrary(handle);
     return true;
 }
 
 
 #ifdef _WIN32
-int Utils::get_installed_cuda_runtime_version() {
+int Utils::get_installed_cuda_runtime_version()
+{
     HMODULE hCuda = LoadLibraryA("nvcuda.dll");
-    if (!hCuda) return 0;
+    if (!hCuda) {
+        std::cerr << "Failed to load nvcuda.dll\n";
+        return 0;
+    }
 
     using cudaDriverGetVersion_t = int(__cdecl *)(int*);
     auto cudaDriverGetVersion = reinterpret_cast<cudaDriverGetVersion_t>(
@@ -340,18 +359,22 @@ int Utils::get_installed_cuda_runtime_version() {
     );
 
     if (!cudaDriverGetVersion) {
+        std::cerr << "Failed to get cuDriverGetVersion symbol\n";
         FreeLibrary(hCuda);
         return 0;
     }
 
     int version = 0;
     if (cudaDriverGetVersion(&version) != 0) {
+        std::cerr << "cuDriverGetVersion call failed\n";
         FreeLibrary(hCuda);
         return 0;
     }
 
+    std::cerr << "[CUDA] Detected CUDA driver version: " << version << std::endl;
+
     FreeLibrary(hCuda);
-    return version; // e.g., 12080 for CUDA 12.8
+    return version;
 }
 #endif
 
@@ -362,11 +385,12 @@ std::string Utils::get_cudart_dll_name() {
     if (version == 0) return "";
 
     int major = version / 1000;        // e.g., 12
-    int minor = (version % 1000) / 10; // e.g., 8
+    // int minor = (version % 1000) / 10; // e.g., 8
 
     char buffer[32];
-    std::snprintf(buffer, sizeof(buffer), "cudart64_%d%d.dll", major, minor);
-    return buffer; // e.g., "cudart64_128.dll"
+    std::snprintf(buffer, sizeof(buffer), "cudart64_%d.dll", major);
+    std::cerr << "[CUDA] Determined DLL name: " << buffer << std::endl;
+    return buffer; // e.g., "cudart64_12.dll"
 }
 #endif
 
