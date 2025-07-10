@@ -32,9 +32,8 @@ LocalLLMClient::LocalLLMClient(const std::string& model_path)
         model_params.n_gpu_layers = Utils::determine_ngl_cuda();
         std::cout << "ngl: " << model_params.n_gpu_layers << std::endl;
     } else {
-        model_params.n_gpu_layers = 18;
+        model_params.n_gpu_layers = 0;
         printf("model_params.n_gpu_layers: %d\n", model_params.n_gpu_layers);
-        // model_params.n_gpu_layers = 0;
         std::vector<std::string> devices;
         if (Utils::is_opencl_available(&devices)) {
             std::cout << "OpenCL is available.\n";
@@ -44,8 +43,6 @@ LocalLLMClient::LocalLLMClient(const std::string& model_path)
             std::cout << "OpenCL not found.\n";
         }
     }
-    // ngl = model_params.n_gpu_layers;
-    // printf("ngl set to %d\n", ngl);
 
     model = llama_model_load_from_file(model_path.c_str(), model_params);
     if (!model) {
