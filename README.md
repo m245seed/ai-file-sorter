@@ -62,7 +62,7 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 
 File categorization with local LLMs is completely free of charge.
 
-If you want file categorization with ChatGPT, you will need to get an OpenAI API key and add a minimal balance to it for this program to work. Categorization is quite cheap, so $0.01 will be enough to categorize a relatively large number of files. The instructions on how to integrate your API key into the app are given below.
+If you want file categorization with ChatGPT, you will need to get an OpenAI API key and add a minimal balance to it for this program to work. Categorization is quite cheap, so $0.01 will be enough to categorize a relatively large number of files. The instructions on how to integrate your API key into the app are given below. You can also download a [Release](https://github.com/hyperfield/ai-file-sorter/releases) version, which has an embedded API key.
 
 ### Windows
 
@@ -111,14 +111,18 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
     -DCMAKE_CXX_COMPILER="C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe"
     ```
 
-    **Important**: If you don't have an Nvidia GPU or if you didn't install the CUDA Toolkit in step 5, change `-DGGML_CUDA=ON` to `-DGGML_CUDA=OFF` in this script.
-
     Save any changes.
 
 8. In `Developer PowerShell for VS 2022`, run
 
+    **If you have CUDA**:
     ```
-    powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1
+    powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=on
+    ```
+
+    **If you don't have CUDA**:
+    ```
+    powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=off
     ```
 
 9. **Optional** (not needed if you want to use only local LLMs for file sorting). Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here. The app won't work otherwise.
@@ -281,7 +285,11 @@ Follow the steps in [How to Use](#how-to-use), but modify **step 2** as follows:
 - Gtk+3: https://gitlab.gnome.org/GNOME/gtk
 - Dotenv: https://github.com/motdotla/dotenv
 - git-scm: https://git-scm.com
+- Hugging Face: https://huggingface.co
 - JSONCPP: https://github.com/open-source-parsers/jsoncpp
+- LLaMa: https://www.llama.com
+- llama.cpp https://github.com/ggml-org/llama.cpp
+- Minstral AI: https://mistral.ai
 - MSYS2: https://www.msys2.org
 - OpenAI: https://platform.openai.com/docs/overview
 - OpenSSL: https://github.com/openssl/openssl
