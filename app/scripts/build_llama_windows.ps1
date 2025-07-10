@@ -1,5 +1,15 @@
 $ErrorActionPreference = "Stop"
 
+# Parse optional argument (cuda=on or cuda=off)
+$useCuda = "OFF"
+foreach ($arg in $args) {
+    if ($arg -match "^cuda=(on|off)$") {
+        $useCuda = ($Matches[1].ToUpper())
+    }
+}
+
+Write-Host "`nCUDA Support: $useCuda`n"
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $llamaDir = Join-Path $scriptDir "..\include\external\llama.cpp"
 
@@ -14,9 +24,12 @@ $headersDir = Join-Path $scriptDir "..\include\llama"
 
 Push-Location $llamaDir
 
-Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path build | Out-Null
+if (Test-Path "build") {
+    Remove-Item -Recurse -Force "build"
+}
+New-Item -ItemType Directory -Path "build" | Out-Null
 
+# CUDA paths (adjust if needed)
 $cudaRoot = "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9"
 $includeDir = "$cudaRoot/include"
 $libDir = "$cudaRoot/lib/x64/cudart.lib"
@@ -26,7 +39,7 @@ $libDir = "$cudaRoot/lib/x64/cudart.lib"
     -DCMAKE_CXX_COMPILER="C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe" `
     -DCURL_LIBRARY="C:/msys64/mingw64/lib/libcurl.dll.a" `
     -DCURL_INCLUDE_DIR="C:/msys64/mingw64/include" `
-    -DGGML_CUDA=ON `
+    -DGGML_CUDA=$useCuda `
     -DCUDA_TOOLKIT_ROOT_DIR="$cudaRoot" `
     -DCUDA_INCLUDE_DIRS="$includeDir" `
     -DCUDA_CUDART="$libDir" `
@@ -44,7 +57,10 @@ cmake --build build --config Release -- /m
 
 Pop-Location
 
-# Copy built DLLs
+# Clean and repopulate precompiled DLLs
+if (Test-Path $precompiledLibsDir) {
+    Remove-Item -Recurse -Force $precompiledLibsDir
+}
 New-Item -ItemType Directory -Force -Path $precompiledLibsDir | Out-Null
 
 $releaseBin = Join-Path $llamaDir "build\bin\Release"
@@ -56,3 +72,5 @@ New-Item -ItemType Directory -Force -Path $headersDir | Out-Null
 Copy-Item "$llamaDir\include\llama.h" -Destination $headersDir
 Copy-Item "$llamaDir\ggml\src\*.h" -Destination $headersDir -ErrorAction SilentlyContinue
 Copy-Item "$llamaDir\ggml\include\*.h" -Destination $headersDir -ErrorAction SilentlyContinue
+
+Write-Host "`n✅ Build complete. Precompiled DLLs updated in: $precompiledLibsDir`n"
