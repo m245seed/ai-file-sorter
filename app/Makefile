@@ -42,7 +42,7 @@ else ifeq ($(UNAME), MINGW64_NT)
     RC_FILE = resources/exe_icon.rc
     RC_OBJ = resources/exe_icon.o
 
-    LDFLAGS += -mwindows -ljsoncpp -lcrypto -lcurl -lspdlog -lsqlite3 -lssl -lfmt -lllama -lggml
+    LDFLAGS += -mwindows -lwininet -ljsoncpp -lcrypto -lcurl -lspdlog -lsqlite3 -lssl -lfmt -lllama -lggml
 endif
 
 # Compiler and flags
