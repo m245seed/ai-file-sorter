@@ -6,6 +6,7 @@
 #include <glibmm/fileutils.h>
 #ifdef _WIN32
     #include <windows.h>
+    #include <wininet.h>
 #elif __linux__
     #include <dlfcn.h>
     #include <limits.h>
@@ -67,11 +68,12 @@ constexpr cl_uint CL_DEVICE_NAME = 0x102B;
 bool Utils::is_network_available()
 {
 #ifdef _WIN32
-    int result = system("ping -n 1 google.com > NUL 2>&1");
+    DWORD flags;
+    return InternetGetConnectedState(&flags, 0);
 #else
     int result = system("ping -c 1 google.com > /dev/null 2>&1");
-#endif
     return result == 0;
+#endif
 }
 
 
