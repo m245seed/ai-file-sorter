@@ -32,7 +32,7 @@ void LLMDownloader::init_if_needed()
     if (initialized) return;
 
     if (!Utils::is_network_available()) {
-        std::cerr << "Still no internet...\n";
+        // std::cerr << "Still no internet...\n";
         return;
     }
 
@@ -208,7 +208,6 @@ void LLMDownloader::perform_download()
     curl_easy_cleanup(curl);
 
     if (res != CURLE_OK) {
-        // std::cerr << "[perform_download] Failed: " << curl_easy_strerror(res) << std::endl;
         cancel_requested = false;
     } else {
         mark_download_resumable();
