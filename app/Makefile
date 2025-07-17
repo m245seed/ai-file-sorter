@@ -11,7 +11,9 @@ ifeq ($(UNAME), Linux)
     CXXFLAGS += -DLINUX
     TARGET := $(BIN_DIR)/aifilesorter
     INSTALL_DIR := /usr/local/bin
-    RESOURCE_DIR := /usr/local/share/aifilesorter
+    INSTALL_LIB_DIR := /usr/local/lib/aifilesorter
+	LD_CONF_FILE := /etc/ld.so.conf.d/aifilesorter.conf
+
 	LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lggml -pthread
 	LDFLAGS += -Wl,-rpath,'$$ORIGIN/../lib/precompiled'
 
@@ -88,8 +90,19 @@ clean:
 install: $(TARGET)
 
 ifeq ($(PLATFORM), Linux)
+	@echo "Installing binary to $(INSTALL_DIR)..."
 	mkdir -p $(INSTALL_DIR)
 	cp $(TARGET) $(INSTALL_DIR)/aifilesorter
+
+	@echo "Installing libraries to $(INSTALL_LIB_DIR)..."
+	mkdir -p $(INSTALL_LIB_DIR)
+	cp lib/precompiled/*.so $(INSTALL_LIB_DIR)
+
+	@echo "Registering library path with ldconfig..."
+	echo "$(INSTALL_LIB_DIR)" > $(LD_CONF_FILE)
+	ldconfig
+
+	@echo "Installation complete."
 
 else ifeq ($(PLATFORM), MacOS)
 	mkdir -p $(INSTALL_DIR)
@@ -129,11 +142,32 @@ endif
 
 uninstall:
 	ifeq ($(PLATFORM), Linux)
-		rm -f $(INSTALL_DIR)/aifilesorter
+		@echo "Uninstalling aifilesorter binary and libraries..."
+
+		@echo "Removing binary from /usr/local/bin..."
+		rm -f /usr/local/bin/aifilesorter
+
+		@echo "Removing libraries from /usr/local/lib/aifilesorter..."
+		rm -rf /usr/local/lib/aifilesorter
+
+		@echo "Removing ld config file..."
+		rm -f /etc/ld.so.conf.d/aifilesorter.conf
+
+		@echo "Running ldconfig..."
+		ldconfig
+
+		@echo "Core uninstallation complete."
+
+		@read -p "Do you also want to delete the downloaded local LLM models in ~/.local/share/aifilesorter/llms/? [y/N] " ans; \
+		if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
+			echo "Deleting ~/.local/share/aifilesorter/llms/..."; \
+			rm -rf $$HOME/.local/share/aifilesorter/llms; \
+		else \
+			echo "Keeping downloaded models."; \
+		fi
+
 	else ifeq ($(PLATFORM), MacOS)
 		rm -f $(INSTALL_DIR)/aifilesorter
-	else ifeq ($(PLATFORM), Windows (32-bit))
-		rm -rf $(INSTALL_DIR)
 	else ifeq ($(PLATFORM), Windows (64-bit))
 		rm -rf $(INSTALL_DIR)
 	endif
