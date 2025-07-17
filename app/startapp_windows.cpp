@@ -5,6 +5,16 @@
 #include <windows.h>
 
 
+bool isCudaAvailable() {
+    HMODULE cuda = LoadLibraryA("nvcuda.dll");
+    if (cuda) {
+        FreeLibrary(cuda);
+        return true;
+    }
+    return false;
+}
+
+
 std::string getExecutableDirectory() {
     WCHAR buffer[MAX_PATH];
     GetModuleFileNameW(NULL, buffer, MAX_PATH);
@@ -49,7 +59,8 @@ void launchMainApp() {
 
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-                   LPSTR lpCmdLine, int nCmdShow) {
+                   LPSTR lpCmdLine, int nCmdShow)
+{
     std::string exeDir = getExecutableDirectory();
 
     if (!SetCurrentDirectoryA(exeDir.c_str())) {
@@ -59,6 +70,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
     std::string dllPath = exeDir + "\\lib";
     addToPath(dllPath);
+
+    bool useCuda = isCudaAvailable();
+    std::string cudaPath = exeDir + "\\lib\\ggml\\wcuda";
+    std::string noCudaPath = exeDir + "\\lib\\ggml\\wocuda";
+    addToPath(useCuda ? cudaPath : noCudaPath);
+
     launchMainApp();
     return EXIT_SUCCESS;
 }
