@@ -88,7 +88,6 @@ clean:
 	rm -rf $(OBJ_DIR) $(BIN_DIR) $(RC_OBJ)
 
 install: $(TARGET)
-
 ifeq ($(PLATFORM), Linux)
 	@echo "Installing binary to $(INSTALL_DIR)..."
 	mkdir -p $(INSTALL_DIR)
@@ -141,33 +140,33 @@ else ifeq ($(PLATFORM), Windows (64-bit))
 endif
 
 uninstall:
-	ifeq ($(PLATFORM), Linux)
-		@echo "Uninstalling aifilesorter binary and libraries..."
+ifeq ($(PLATFORM), Linux)
+	@echo "Uninstalling aifilesorter binary and libraries..."
 
-		@echo "Removing binary from /usr/local/bin..."
-		rm -f /usr/local/bin/aifilesorter
+	@echo "Removing binary from /usr/local/bin..."
+	rm -f /usr/local/bin/aifilesorter
 
-		@echo "Removing libraries from /usr/local/lib/aifilesorter..."
-		rm -rf /usr/local/lib/aifilesorter
+	@echo "Removing libraries from /usr/local/lib/aifilesorter..."
+	rm -rf /usr/local/lib/aifilesorter
 
-		@echo "Removing ld config file..."
-		rm -f /etc/ld.so.conf.d/aifilesorter.conf
+	@echo "Removing ld config file..."
+	rm -f /etc/ld.so.conf.d/aifilesorter.conf
 
-		@echo "Running ldconfig..."
-		ldconfig
+	@echo "Running ldconfig..."
+	ldconfig
 
-		@echo "Core uninstallation complete."
+	@echo "Core uninstallation complete."
 
-		@read -p "Do you also want to delete the downloaded local LLM models in ~/.local/share/aifilesorter/llms/? [y/N] " ans; \
-		if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
-			echo "Deleting ~/.local/share/aifilesorter/llms/..."; \
-			rm -rf $$HOME/.local/share/aifilesorter/llms; \
-		else \
-			echo "Keeping downloaded models."; \
-		fi
+	@read -p "Do you also want to delete the downloaded local LLM models in ~/.local/share/aifilesorter/llms/? [y/N] " ans; \
+	if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
+		echo "Deleting ~/.local/share/aifilesorter/llms/..."; \
+		rm -rf $$HOME/.local/share/aifilesorter/llms; \
+	else \
+		echo "Keeping downloaded models."; \
+	fi
 
-	else ifeq ($(PLATFORM), MacOS)
-		rm -f $(INSTALL_DIR)/aifilesorter
-	else ifeq ($(PLATFORM), Windows (64-bit))
-		rm -rf $(INSTALL_DIR)
-	endif
+else ifeq ($(PLATFORM), MacOS)
+	rm -f $(INSTALL_DIR)/aifilesorter
+else ifeq ($(PLATFORM), Windows (64-bit))
+	rm -rf $(INSTALL_DIR)
+endif
