@@ -120,7 +120,7 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
     // Descriptions
     GtkWidget *radio_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     GtkWidget* label_remote_desc = gtk_label_new(
-    "Online LLM – fast, accurate, and always up-to-date. Requires internet connection.");
+    "Fast and accurate, but requires internet connection.");
     gtk_label_set_xalign(GTK_LABEL(label_remote_desc), 0.0f);
     gtk_widget_set_margin_bottom(label_remote_desc, 10);
     GtkWidget* label_3b_desc = gtk_label_new(
@@ -130,7 +130,7 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
 
     GtkWidget* label_7b_desc = gtk_label_new(
         "Quite precise. Slower on CPU, but performs much better with GPU acceleration.\n"
-        "Supports: Nvidia (cuBLAS), AMD (ROCm/HIP), Apple Silicon (Metal).");
+        "Supports: Nvidia (CUDA), OpenCL, Apple Silicon (Metal), CPU.");
     gtk_label_set_xalign(GTK_LABEL(label_7b_desc), 0.0f);
     gtk_widget_set_margin_bottom(label_7b_desc, 10);
 
@@ -152,13 +152,13 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
     local_llm_7b_button = gtk_radio_button_new_from_widget(GTK_RADIO_BUTTON(remote_llm_button));
     gtk_container_add(GTK_CONTAINER(local_llm_7b_button), local_llm_7b_label);
 
-    gtk_box_pack_start(GTK_BOX(radio_box), remote_llm_button, FALSE, FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(radio_box), label_remote_desc, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(radio_box), local_llm_7b_button, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(radio_box), label_7b_desc, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(radio_box), local_llm_3b_button, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(radio_box), label_3b_desc, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(main_box), radio_box, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(radio_box), remote_llm_button, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(radio_box), label_remote_desc, FALSE, FALSE, 0);
 
     // Downloader
     const char* default_url = std::getenv("LOCAL_LLM_3B_DOWNLOAD_URL");
