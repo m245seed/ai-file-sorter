@@ -31,14 +31,14 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 
 - **AI-Powered Categorization**: Classify files intelligently using either a **local LLM** (LLaMa, Mistral) or a
                                  remote LLM (ChatGPT), depending on your preference.
-- **Offline-Friendly**: Use a local LLM to categorize files entirely e—no internet or API key required.
+- **Offline-Friendly**: Use a local LLM to categorize files entirely - no internet or API key required.
   **Customizable Sorting Rules**: Automatically assign categories and subcategories for granular organization.
 - **Intuitive Interface**: Lightweight and user-friendly for fast, efficient use.
 - **Cross-Platform Compatibility**: Works on Windows, macOS, and Linux.
 - **Local Database Caching**: Speeds up repeated categorization and minimizes remote LLM usage costs.
 - **Sorting Preview**: See how files will be organized before confirming changes.
 - **Secure API Key Encryption**: When using the remote model, your API key is stored securely with encryption.
-- **Update Notifications**: Get notified about updates—with optional or required update flows.
+- **Update Notifications**: Get notified about updates - with optional or required update flows.
 
 ---
 
@@ -52,7 +52,7 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
   
   Optional:
     - **Git**: For cloning this repository. You can alternatively download the repo in a zip archive.
-    - **OpenAI API Key**: Not needed for local LLMs, but needed to download the models.
+    - **OpenAI API Key**: Not needed for local LLMs.
 
 ---
 
