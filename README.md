@@ -10,6 +10,7 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 
 ---
 
+- [Changelog](#changelog)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -24,6 +25,16 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 - [License](#license)
 - [Credits](#credits)
 - [Donation](#donation)
+
+---
+
+## Changelog
+
+### [0.9.0] - 2025-07-18
+  - Local LLM support with `llama.cpp`.
+  - LLM selection and download dialog.
+  - Improved `Makefile` for a more hassle-free build and installation.
+  - Minor bug fixes and improvements.
 
 ---
 
