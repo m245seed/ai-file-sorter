@@ -30,6 +30,7 @@ else ifeq ($(UNAME), Darwin)
     CXXFLAGS += -DMACOS -DENABLE_METAL -DGGML_USE_METAL -Wno-deprecated -Iinclude/llama
     TARGET := $(BIN_DIR)/aifilesorter
     INSTALL_DIR := /usr/local/bin
+	INSTALL_LIB_DIR := /usr/local/lib
 
     IS_APPLE_SILICON := $(shell sysctl -n machdep.cpu.brand_string | grep -i "Apple" > /dev/null && echo 1 || echo 0)
     SPDLOG_PATH := $(shell if [ "$(IS_APPLE_SILICON)" = "1" ]; then echo "/opt/homebrew/include"; else echo "/usr/local/include"; fi)
@@ -109,8 +110,23 @@ ifeq ($(PLATFORM), Linux)
 	@echo "Installation complete."
 
 else ifeq ($(PLATFORM), MacOS)
+	@echo "Installing binary to $(INSTALL_DIR)..."
 	mkdir -p $(INSTALL_DIR)
 	cp $(TARGET) $(INSTALL_DIR)/aifilesorter
+
+	@echo "Installing libraries to $(INSTALL_LIB_DIR)..."
+	mkdir -p $(INSTALL_LIB_DIR)
+	cp lib/precompiled/libggml-base.dylib $(INSTALL_LIB_DIR)
+	cp lib/precompiled/libggml-blas.dylib $(INSTALL_LIB_DIR)
+	cp lib/precompiled/libggml-cpu.dylib $(INSTALL_LIB_DIR)
+	cp lib/precompiled/libggml-metal.dylib $(INSTALL_LIB_DIR)
+	cp lib/precompiled/libggml.dylib $(INSTALL_LIB_DIR)
+	cp lib/precompiled/libmtmd.dylib $(INSTALL_LIB_DIR)
+	cp lib/precompiled/libllama.dylib $(INSTALL_LIB_DIR)
+
+	install_name_tool -add_rpath $(INSTALL_LIB_DIR) $(INSTALL_DIR)/aifilesorter
+
+	@echo "macOS installation complete."
 
 else ifeq ($(PLATFORM), Windows (64-bit))
 	mkdir -p $(INSTALL_DIR)/certs
@@ -171,7 +187,30 @@ ifeq ($(PLATFORM), Linux)
 	fi
 
 else ifeq ($(PLATFORM), MacOS)
+	@echo "Uninstalling aifilesorter binary and libraries on macOS..."
+
+	@echo "Removing binary from $(INSTALL_DIR)..."
 	rm -f $(INSTALL_DIR)/aifilesorter
+
+	@echo "Removing installed libraries..."
+	rm -f $(INSTALL_LIB_DIR)/libggml-base.dylib
+	rm -f $(INSTALL_LIB_DIR)/libggml-blas.dylib
+	rm -f $(INSTALL_LIB_DIR)/libggml-cpu.dylib
+	rm -f $(INSTALL_LIB_DIR)/libggml-metal.dylib
+	rm -f $(INSTALL_LIB_DIR)/libggml.dylib
+	rm -f $(INSTALL_LIB_DIR)/libmtmd.dylib
+	rm -f $(INSTALL_LIB_DIR)/libllama.dylib
+
+	@echo "Core uninstallation complete."
+
+	@read -p "Do you also want to delete the downloaded local LLM models in ~/Library/Application\ Support/aifilesorter/llms/? [y/N] " ans; \
+	if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
+		echo "Deleting ~/Library/Application Support/aifilesorter/llms/..."; \
+		rm -rf "$$HOME/Library/Application Support/aifilesorter/llms"; \
+	else \
+		echo "Keeping downloaded models."; \
+	fi
+
 else ifeq ($(PLATFORM), Windows (64-bit))
 	rm -rf $(INSTALL_DIR)
 endif
