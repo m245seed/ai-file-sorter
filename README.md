@@ -130,9 +130,9 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
     ```
 
     **If you don't have CUDA**:
-    ```
-    powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=off
-    ```
+    
+      powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=off
+    
 
 9. **Optional** (not needed if you want to use only local LLMs for file sorting). Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here. The app won't work otherwise.
 
