@@ -140,9 +140,23 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
 
 11. Run `make`, `make install` and `make clean`. The executable `AiFileSorter.exe` will be located in `C:\Program Files\AiFileSorter`. You can add the directory to `%PATH%`.
 
+To uninstall, launch `MSYS2 MINGW64` (**NOT** `MSYS2 MSYS`) *as Administrator*, go to the same directory (`ai-file-sorter/app`) and issue the command `make uninstall`.
+
 ---
 
-### MacOS (Apple Silicon)
+### MacOS
+
+##### Clone the repository
+
+    git clone https://github.com/hyperfield/ai-file-sorter.git
+    cd ai-file-sorter
+    git submodule update --init --recursive --remote
+
+##### Navigate into the directory
+
+    cd ai-file-sorter
+
+#### Compile the app
 
 1. Install Xcode (required for Accelerate.framework and AppleClang):
 - From the App Store, install **Xcode**.
@@ -154,37 +168,40 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
 
        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-3. Add these lines to your `~/.zshrc` file:
-
-```
-export PATH="/opt/homebrew/opt/curl/bin:$PATH"
-export PATH="/usr/bin:$PATH"
-export PKG_CONFIG_PATH=/opt/homebrew/lib/pkgconfig:$PKG_CONFIG_PATH
-export PKG_CONFIG_PATH=/opt/homebrew/share/pkgconfig:$PKG_CONFIG_PATH
-export PKG_CONFIG_PATH=/opt/homebrew/opt/libffi/lib/pkgconfig:$PKG_CONFIG_PATH
-export PKG_CONFIG_PATH=/opt/homebrew/opt/expat/lib/pkgconfig:$PKG_CONFIG_PATH
-export LDFLAGS="-L/opt/homebrew/opt/libffi/lib"
-export CPPFLAGS="-I/opt/homebrew/opt/libffi/include"
-```
-
-Then `source ~/.zshrc` or `source ~/.bashrc`.
-
-4. Install dependencies:
+3. Install dependencies:
    ```bash
-   brew install cmake gcc atkmm@2.28 cairo at-spi2-core pangomm@2.46 gtk+3 gtkmm3 glibmm@2.66 cairomm@1.14 pango harfbuzz glib gettext curl jsoncpp sqlite3 openssl@3 pkg-config libffi expat xproto xorgproto fmt spdlog adwaita-icon-theme hicolor-icon-theme
+   brew install cmake gcc atkmm@2.28 cairo at-spi2-core pangomm@2.46 gtk+3 gtkmm3 glibmm@2.66 cairomm@1.14 pango harfbuzz glib gettext curl jsoncpp sqlite3 openssl@3 pkg-config libffi expat xorgproto fmt spdlog adwaita-icon-theme hicolor-icon-theme
 
    brew install --cask font-0xproto
    ```
 
-5. Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here. The app won't work otherwise.
+4. Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here. The app won't work otherwise.
 
-6. Go to `app/resources` and run `./compile-resources.sh`. Go back to the `app` directory.
+5. Go to `app/resources` and run `./compile-resources.sh`. Go back to the `app` directory.
 
-7. Run `make`, `sudo make install`, `make clean`. Then you can launch the app with the command `aifilesorter`.
+6. Run `make`, `sudo make install`, `make clean`. Then you can launch the app with the command `aifilesorter`.
+
+---
+
+## Uninstallation
+
+Use `sudo make uninstall` in the same `app` subdirectory
 
 ---
 
 ### Linux
+
+##### Clone the repository
+
+    git clone https://github.com/hyperfield/ai-file-sorter.git
+    cd ai-file-sorter
+    git submodule update --init --recursive --remote
+
+##### Navigate into the directory
+
+    cd ai-file-sorter
+
+#### Compile the app
 
 #### 1. Install dependencies:
 
@@ -259,7 +276,7 @@ Before compiling the app:
 
 ## Uninstallation
 
-In the directory `app`, run `sudo make uninstall`.
+In the same subdirectory `app`, run `sudo make uninstall`.
 
 ---
 
