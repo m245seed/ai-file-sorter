@@ -144,8 +144,16 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
 
 ### MacOS (Apple Silicon)
 
-1. Install Xcode tools: `xcode-select --install`.
-2. Install Homebrew: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`.
+1. Install Xcode (required for Accelerate.framework and AppleClang):
+- From the App Store, install **Xcode**.
+- Then run in Terminal:
+
+      sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+2. Install Homebrew:
+
+       /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
 3. Add these lines to your `~/.zshrc` file:
 
 ```
@@ -163,7 +171,7 @@ Then `source ~/.zshrc` or `source ~/.bashrc`.
 
 4. Install dependencies:
    ```bash
-   brew install gcc atkmm@2.28 cairo at-spi2-core pangomm@2.46 gtk+3 gtkmm3 glibmm@2.66 cairomm@1.14 pango harfbuzz glib gettext curl jsoncpp sqlite3 openssl@3 pkg-config libffi expat xproto xorgproto fmt spdlog adwaita-icon-theme hicolor-icon-theme
+   brew install cmake gcc atkmm@2.28 cairo at-spi2-core pangomm@2.46 gtk+3 gtkmm3 glibmm@2.66 cairomm@1.14 pango harfbuzz glib gettext curl jsoncpp sqlite3 openssl@3 pkg-config libffi expat xproto xorgproto fmt spdlog adwaita-icon-theme hicolor-icon-theme
 
    brew install --cask font-0xproto
    ```
