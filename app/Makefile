@@ -19,20 +19,25 @@ ifeq ($(UNAME), Linux)
 
 
 else ifeq ($(UNAME), Darwin)
+    export PATH := /opt/homebrew/opt/curl/bin:$(PATH)
+
+    export PKG_CONFIG_PATH := /opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig:/opt/homebrew/opt/libffi/lib/pkgconfig:/opt/homebrew/opt/expat/lib/pkgconfig:$(PKG_CONFIG_PATH)
+
+    export LDFLAGS += -L/opt/homebrew/opt/libffi/lib
+    export CPPFLAGS += -I/opt/homebrew/opt/libffi/include
+
     PLATFORM := MacOS
-    CXXFLAGS += -DMACOS
+    CXXFLAGS += -DMACOS -DENABLE_METAL -DGGML_USE_METAL -Wno-deprecated -Iinclude/llama
     TARGET := $(BIN_DIR)/aifilesorter
     INSTALL_DIR := /usr/local/bin
-    RESOURCE_DIR := /usr/local/share/aifilesorter
 
     IS_APPLE_SILICON := $(shell sysctl -n machdep.cpu.brand_string | grep -i "Apple" > /dev/null && echo 1 || echo 0)
-
-    ifeq ($(IS_APPLE_SILICON), 1)
-        CXXFLAGS += -DENABLE_METAL
-    endif
+    SPDLOG_PATH := $(shell if [ "$(IS_APPLE_SILICON)" = "1" ]; then echo "/opt/homebrew/include"; else echo "/usr/local/include"; fi)
+    CXXFLAGS += -I$(SPDLOG_PATH)
 
     LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lggml -pthread
-    LDFLAGS += -Wl,-rpath,'$$ORIGIN/../lib/precompiled'
+	LDFLAGS += -framework Metal -framework Foundation
+    LDFLAGS += -Wl,-rpath,@loader_path/lib
 
 
 else ifeq ($(UNAME), MINGW64_NT)
@@ -50,7 +55,7 @@ endif
 # Compiler and flags
 CXX = g++
 CXXFLAGS += -std=c++20 -Wall $(shell pkg-config --cflags gtkmm-3.0)
-CXXFLAGS += -g -O0
+CXXFLAGS += -O2
 
 LDFLAGS += $(shell pkg-config --libs gtkmm-3.0)
 INCLUDE_DIRS = -I./include -I./include/llama
