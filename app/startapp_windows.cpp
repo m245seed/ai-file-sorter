@@ -15,6 +15,16 @@ bool isCudaAvailable() {
 }
 
 
+bool isOpenCLAvailable() {
+    HMODULE opencl = LoadLibraryA("OpenCL.dll");
+    if (opencl) {
+        FreeLibrary(opencl);
+        return true;
+    }
+    return false;
+}
+
+
 std::string getExecutableDirectory() {
     WCHAR buffer[MAX_PATH];
     GetModuleFileNameW(NULL, buffer, MAX_PATH);
@@ -68,13 +78,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
         return EXIT_FAILURE;
     }
 
-    std::string dllPath = exeDir + "\\lib";
-    addToPath(dllPath);
+    addToPath(exeDir + "\\lib");
 
-    bool useCuda = isCudaAvailable();
-    std::string cudaPath = exeDir + "\\lib\\ggml\\wcuda";
-    std::string noCudaPath = exeDir + "\\lib\\ggml\\wocuda";
-    addToPath(useCuda ? cudaPath : noCudaPath);
+    bool hasCuda = isCudaAvailable();
+    bool hasOpenCL = isOpenCLAvailable();
+
+    std::string folderName;
+    folderName += hasCuda ? "wcuda" : "wocuda";
+    folderName += hasOpenCL ? "wopencl" : "woopencl";
+
+    std::string ggmlPath = exeDir + "\\lib\\ggml\\" + folderName;
+    addToPath(ggmlPath);
 
     launchMainApp();
     return EXIT_SUCCESS;
