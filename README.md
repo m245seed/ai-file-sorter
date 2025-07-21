@@ -15,7 +15,7 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 - [Requirements](#requirements)
 - [Installation](#installation)
   - [Windows](#windows)
-  - [MacOS (Apple Silicon)](#macos-apple-silicon)
+  - [MacOS (Apple Silicon)](#macos)
   - [Linux](#linux)
 - [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption)
 - [Uninstallation](#uninstallation)
