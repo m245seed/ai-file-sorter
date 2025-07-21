@@ -27,22 +27,25 @@ LocalLLMClient::LocalLLMClient(const std::string& model_path)
 
     llama_model_params model_params = llama_model_default_params();
 
-    // int ngl;
-    if (Utils::is_cuda_available()) {
-        model_params.n_gpu_layers = Utils::determine_ngl_cuda();
-        std::cout << "ngl: " << model_params.n_gpu_layers << std::endl;
-    } else {
+    #ifdef GGML_USE_METAL
         model_params.n_gpu_layers = 0;
-        printf("model_params.n_gpu_layers: %d\n", model_params.n_gpu_layers);
-        std::vector<std::string> devices;
-        if (Utils::is_opencl_available(&devices)) {
-            std::cout << "OpenCL is available.\n";
-            for (const auto& dev : devices)
-                std::cout << "Device: " << dev << "\n";
+    #else
+        if (Utils::is_cuda_available()) {
+            model_params.n_gpu_layers = Utils::determine_ngl_cuda();
+            std::cout << "ngl: " << model_params.n_gpu_layers << std::endl;
         } else {
-            std::cout << "OpenCL not found.\n";
+            model_params.n_gpu_layers = 0;
+            printf("model_params.n_gpu_layers: %d\n", model_params.n_gpu_layers);
+            std::vector<std::string> devices;
+            if (Utils::is_opencl_available(&devices)) {
+                std::cout << "OpenCL is available.\n";
+                for (const auto& dev : devices)
+                    std::cout << "Device: " << dev << "\n";
+            } else {
+                std::cout << "OpenCL not found.\n";
+            }
         }
-    }
+    #endif
 
     model = llama_model_load_from_file(model_path.c_str(), model_params);
     if (!model) {
