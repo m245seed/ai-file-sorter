@@ -124,13 +124,13 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
     gtk_label_set_xalign(GTK_LABEL(label_remote_desc), 0.0f);
     gtk_widget_set_margin_bottom(label_remote_desc, 10);
     GtkWidget* label_3b_desc = gtk_label_new(
-    "Not very precise, but works quickly even on CPUs. Good for lightweight local use.");
+    "Less precise, but works quickly even on CPUs. Good for lightweight local use.");
     gtk_label_set_xalign(GTK_LABEL(label_3b_desc), 0.0f);
     gtk_widget_set_margin_bottom(label_3b_desc, 10);
 
     GtkWidget* label_7b_desc = gtk_label_new(
         "Quite precise. Slower on CPU, but performs much better with GPU acceleration.\n"
-        "Supports: Nvidia (CUDA), OpenCL, Apple Silicon (Metal), CPU.");
+        "Supports: Nvidia (CUDA), OpenCL, Apple (Metal), CPU.");
     gtk_label_set_xalign(GTK_LABEL(label_7b_desc), 0.0f);
     gtk_widget_set_margin_bottom(label_7b_desc, 10);
 
@@ -285,6 +285,8 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
             selected_choice = LLMChoice::Local_7b;
             break;
         default:
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(local_llm_7b_button), TRUE);
+            selected_choice = LLMChoice::Local_7b;
             break;
     }
 
