@@ -124,8 +124,7 @@ void CategorizationProgressDialog::hide()
 }
 
 
-CategorizationProgressDialog::~CategorizationProgressDialog()
-{
+CategorizationProgressDialog::~CategorizationProgressDialog() {
     if (m_Dialog) {
         gtk_widget_destroy(m_Dialog);
         m_Dialog = nullptr;

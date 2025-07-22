@@ -181,7 +181,7 @@ int Utils::get_ngl(int vram_mb) {
     if (vram_mb < 2048) return 0;
 
     int step = (vram_mb - 2048) / 512;
-    return std::min(12 + step * 2, 32);
+    return std::min(14 + step * 2, 32);
 }
 
 
@@ -296,8 +296,7 @@ std::string Utils::make_default_path_to_file_from_download_url(std::string url)
 }
 
 
-bool Utils::is_cuda_available()
-{
+bool Utils::is_cuda_available() {
     std::cerr << "[CUDA] Checking CUDA availability..." << std::endl;
 
 #ifdef _WIN32
@@ -320,8 +319,10 @@ bool Utils::is_cuda_available()
     }
 
     typedef int (*cudaGetDeviceCount_t)(int*);
-    auto cudaGetDeviceCount = (cudaGetDeviceCount_t)getSymbol(handle, "cudaGetDeviceCount");
-    std::cerr << "[CUDA] Lookup cudaGetDeviceCount symbol: " << (cudaGetDeviceCount ? "Found" : "Not Found") << std::endl;
+    auto cudaGetDeviceCount = (cudaGetDeviceCount_t)getSymbol(handle,
+                                                        "cudaGetDeviceCount");
+    std::cerr << "[CUDA] Lookup cudaGetDeviceCount symbol: " << (
+        cudaGetDeviceCount ? "Found" : "Not Found") << std::endl;
 
     if (!cudaGetDeviceCount) {
         closeLibrary(handle);
@@ -432,7 +433,8 @@ bool Utils::is_opencl_available(std::vector<std::string>* device_names)
 
     cl_device_id devices[4];
     cl_uint num_devices = 0;
-    if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 4, devices, &num_devices) != CL_SUCCESS || num_devices == 0) {
+    if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 4, devices,
+                       &num_devices) !=CL_SUCCESS || num_devices == 0) {
         closeLibrary(handle);
         return false;
     }
@@ -440,7 +442,8 @@ bool Utils::is_opencl_available(std::vector<std::string>* device_names)
     if (device_names) {
         for (cl_uint i = 0; i < num_devices; ++i) {
             char name[256];
-            if (clGetDeviceInfo(devices[i], CL_DEVICE_NAME, sizeof(name), name, nullptr) == CL_SUCCESS) {
+            if (clGetDeviceInfo(devices[i], CL_DEVICE_NAME, sizeof(name),
+                name, nullptr) == CL_SUCCESS) {
                 device_names->emplace_back(name);
             }
         }

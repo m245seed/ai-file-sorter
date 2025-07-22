@@ -59,16 +59,6 @@ LocalLLMClient::LocalLLMClient(const std::string& model_path)
     int n_ctx = 1024;
     ctx_params.n_ctx = n_ctx;
     ctx_params.n_batch = n_ctx;
-    ctx = llama_init_from_model(model, ctx_params);
-    if (!ctx) {
-        llama_model_free(model);
-        throw std::runtime_error("Failed to create context");
-    }
-
-    smpl = llama_sampler_chain_init(llama_sampler_chain_default_params());
-    llama_sampler_chain_add(smpl, llama_sampler_init_min_p(0.05f, 1));
-    llama_sampler_chain_add(smpl, llama_sampler_init_temp(0.8f));
-    llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
 }
 
 
@@ -101,32 +91,44 @@ std::string LocalLLMClient::make_prompt(const std::string& file_name,
 std::string LocalLLMClient::generate_response(const std::string &prompt,
                                               int n_predict)
 {
-    llama_free(ctx);
-    ctx = llama_init_from_model(model, ctx_params);
+    auto* ctx = llama_init_from_model(model, ctx_params);
+    if (!ctx) return "";
+
+    auto* smpl = llama_sampler_chain_init(llama_sampler_chain_default_params());
+    llama_sampler_chain_add(smpl, llama_sampler_init_min_p(0.05f, 1));
+    llama_sampler_chain_add(smpl, llama_sampler_init_temp(0.8f));
+    llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
 
     std::vector<llama_chat_message> messages;
     messages.push_back({"user", prompt.c_str()});
     const char * tmpl = llama_model_chat_template(model, nullptr);
     std::vector<char> formatted_prompt(8192);
 
-    int actual_len = llama_chat_apply_template(tmpl, messages.data(), messages.size(), true,
-                                            formatted_prompt.data(), formatted_prompt.size());
+    int actual_len = llama_chat_apply_template(tmpl, messages.data(),
+                                               messages.size(), true,
+                                               formatted_prompt.data(),
+                                               formatted_prompt.size());
     if (actual_len < 0) {
         fprintf(stderr, "Failed to apply chat template\n");
         return "";
     }
     std::string final_prompt(formatted_prompt.data(), actual_len);
 
-    const int n_prompt = -llama_tokenize(vocab, final_prompt.c_str(), final_prompt.size(), NULL, 0, true, true);
+    const int n_prompt = -llama_tokenize(vocab, final_prompt.c_str(),
+                                         final_prompt.size(),
+                                         NULL, 0, true, true);
     std::vector<llama_token> prompt_tokens(n_prompt);
 
-    if (llama_tokenize(vocab, final_prompt.c_str(), final_prompt.size(), prompt_tokens.data(), prompt_tokens.size(), true, true) < 0) {
+    if (llama_tokenize(vocab, final_prompt.c_str(), final_prompt.size(),
+                       prompt_tokens.data(), prompt_tokens.size(), true,
+                       true) < 0) {
         fprintf(stderr, "%s: error: failed to tokenize the prompt\n", __func__);
         llama_model_free(model);
         return "";
     }
 
-    llama_batch batch = llama_batch_get_one(prompt_tokens.data(), prompt_tokens.size());
+    llama_batch batch = llama_batch_get_one(prompt_tokens.data(),
+                                            prompt_tokens.size());
     llama_token new_token_id;
     std::string output;
 
@@ -146,7 +148,8 @@ std::string LocalLLMClient::generate_response(const std::string &prompt,
 
         if (n_pos >= n_prompt) {
             char buf[128];
-            int n = llama_token_to_piece(vocab, new_token_id, buf, sizeof(buf), 0, true);
+            int n = llama_token_to_piece(vocab, new_token_id, buf,
+                                         sizeof(buf), 0, true);
             if (n < 0) break;
             output.append(buf, n);
             generated_tokens++;
@@ -158,6 +161,9 @@ std::string LocalLLMClient::generate_response(const std::string &prompt,
     while (!output.empty() && std::isspace(output.front())) {
         output.erase(output.begin());
     }
+
+    llama_sampler_reset(smpl);
+    llama_free(ctx);
 
     return sanitize_output(output);
 }
@@ -197,7 +203,5 @@ std::string LocalLLMClient::sanitize_output(std::string& output) {
 
 
 LocalLLMClient::~LocalLLMClient() {
-    if (smpl) llama_sampler_free(smpl);
-    if (ctx) llama_free(ctx);
     if (model) llama_model_free(model);
 }

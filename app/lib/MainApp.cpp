@@ -507,20 +507,22 @@ std::tuple<std::string, std::string> split_category_subcategory(const std::strin
 }
 
 
-std::vector<CategorizedFile> 
-MainApp::categorize_files(const std::vector<FileEntry>& items)
-{
+std::vector<CategorizedFile>
+MainApp::categorize_files(const std::vector<FileEntry>& items) {
     std::unique_ptr<ILLMClient> llm;
 
     if (settings.get_llm_choice() == LLMChoice::Remote) {
         CategorizationSession categorization_session;
-        llm = std::make_unique<LLMClient>(categorization_session.create_llm_client());
+        llm = std::make_unique<LLMClient>(
+            categorization_session.create_llm_client());
     } else if (settings.get_llm_choice() == LLMChoice::Local_3b) {
         std::string url = std::getenv("LOCAL_LLM_3B_DOWNLOAD_URL");
-        llm = std::make_unique<LocalLLMClient>(Utils::make_default_path_to_file_from_download_url(url));
+        llm = std::make_unique<LocalLLMClient>(
+            Utils::make_default_path_to_file_from_download_url(url));
     } else {
         std::string url = std::getenv("LOCAL_LLM_7B_DOWNLOAD_URL");
-        llm = std::make_unique<LocalLLMClient>(Utils::make_default_path_to_file_from_download_url(url));
+        llm = std::make_unique<LocalLLMClient>(
+            Utils::make_default_path_to_file_from_download_url(url));
     }
 
     std::vector<CategorizedFile> categorized_items;
@@ -532,25 +534,30 @@ MainApp::categorize_files(const std::vector<FileEntry>& items)
         }
 
         try {
-            const std::string& dir_path = std::filesystem::path(full_path).parent_path().string();
-            
+            const std::string& dir_path = std::filesystem::path(full_path)
+                .parent_path().string();
+
             auto report_progress = [this](const std::string& message) {
-                auto progress_data = std::make_unique<std::pair<MainApp*, std::string>>(this, message);
+                auto progress_data = std::make_unique<std::pair<MainApp*,
+                    std::string>>(this, message);
 
                 g_idle_add([](gpointer user_data) -> gboolean {
-                    auto progress_data = std::unique_ptr<std::pair<MainApp*, std::string>>(
-                        static_cast<std::pair<MainApp*, std::string>*>(user_data)
-                    );
+                    auto progress_data = std::unique_ptr<std::pair<MainApp*,
+                        std::string>>(
+                            static_cast<std::pair<MainApp*,
+                            std::string>*>(user_data));
 
                     if (progress_data->first->progress_dialog) {
-                        progress_data->first->progress_dialog->append_text(progress_data->second + "\n");
+                        progress_data->first->progress_dialog->append_text(
+                            progress_data->second + "\n");
                     }
 
                     return G_SOURCE_REMOVE;
                 }, progress_data.release());
             };
 
-            auto [category, subcategory] = categorize_file(*llm, name, type, report_progress);
+            auto [category, subcategory] = categorize_file(
+                                            *llm, name, type, report_progress);
 
             categorized_items.emplace_back(CategorizedFile{
                                                 dir_path,
@@ -572,13 +579,15 @@ MainApp::categorize_files(const std::vector<FileEntry>& items)
 }
 
 
-std::string MainApp::categorize_with_timeout(ILLMClient& llm, const std::string& item_name,
-                                             const FileType file_type, int timeout_seconds)
+std::string MainApp::categorize_with_timeout(
+    ILLMClient& llm, const std::string& item_name,
+    const FileType file_type, int timeout_seconds)
 {
     std::promise<std::string> promise;
     std::future<std::string> future = promise.get_future();
 
-    std::thread([&llm, promise = std::move(promise), item_name, file_type]() mutable {
+    std::thread([&llm, promise = std::move(promise), item_name,
+                file_type]()mutable {
         try {
             std::string result = llm.categorize_file(item_name, file_type);
             promise.set_value(result);
@@ -588,10 +597,12 @@ std::string MainApp::categorize_with_timeout(ILLMClient& llm, const std::string&
     }).detach();
 
     // Wait for result
-    if (future.wait_for(std::chrono::seconds(timeout_seconds)) == std::future_status::ready) {
+    if (future.wait_for(std::chrono::seconds(timeout_seconds)) ==
+        std::future_status::ready) {
         return future.get();
     } else {
-        throw std::runtime_error("Network timeout: LLM response took too long.");
+        throw std::runtime_error(
+            "Network timeout: LLM response took too long.");
     }
 }
 
@@ -634,18 +645,22 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
         try {
             if (using_local_llm) {
                 // Wait 30 seconds if using a local LLM
-                category_subcategory = categorize_with_timeout(llm, item_name, file_type, 30);
+                category_subcategory = categorize_with_timeout(
+                    llm, item_name, file_type, 60);
             } else {
-                category_subcategory = categorize_with_timeout(llm, item_name, file_type, 10);
+                category_subcategory = categorize_with_timeout(
+                    llm, item_name, file_type, 10);
             }
         } catch (const std::exception& ex) {
-            std::string message = "LLM Timeout/Error: " + std::string(ex.what());
+            std::string message = "LLM Timeout/Error: "
+                + std::string(ex.what());
             report_progress(message);
             g_printerr("%s\n", message.c_str());
             return std::make_tuple("", "");
         }
 
-        auto [category, subcategory] = split_category_subcategory(category_subcategory);
+        auto [category, subcategory] =
+            split_category_subcategory(category_subcategory);
 
         std::ostringstream message;
         message << "Suggested by AI: " << item_name << " [" << category << "/" << subcategory << "]";
