@@ -225,17 +225,20 @@ int Utils::determine_ngl_cuda() {
     }
 
     size_t total_mem_bytes = *reinterpret_cast<size_t*>(prop_buffer);
+    size_t free_bytes = 0;
 
     if (cudaMemGetInfo) {
-        size_t free_bytes = 0;
         if (cudaMemGetInfo(&free_bytes, &total_mem_bytes) != 0) {
             std::cerr << "Warning: cudaMemGetInfo failed\n";
+            free_bytes = 0;
         }
     }
 
     closeLibrary(lib);
 
-    int vram_mb = static_cast<int>(total_mem_bytes / (1024 * 1024));
+    size_t usable_bytes = free_bytes > 0 ? free_bytes : total_mem_bytes;
+    int vram_mb = static_cast<int>(usable_bytes / (1024 * 1024));
+
     return get_ngl(vram_mb);
 }
 
