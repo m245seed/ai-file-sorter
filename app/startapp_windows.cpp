@@ -3,13 +3,17 @@
 #include <shlobj.h>
 #include <string>
 #include <windows.h>
+#include <vector>
 
 
 bool isCudaAvailable() {
-    HMODULE cuda = LoadLibraryA("nvcuda.dll");
-    if (cuda) {
-        FreeLibrary(cuda);
-        return true;
+    for (int i = 9; i <= 20; ++i) {
+        std::string dllName = "cudart64_" + std::to_string(i) + ".dll";
+        HMODULE lib = LoadLibraryA(dllName.c_str());
+        if (lib) {
+            FreeLibrary(lib);
+            return true;
+        }
     }
     return false;
 }
