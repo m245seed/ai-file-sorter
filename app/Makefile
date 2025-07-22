@@ -16,6 +16,7 @@ ifeq ($(UNAME), Linux)
 
 	LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lggml -pthread
 	LDFLAGS += -Wl,-rpath,'$$ORIGIN/../lib/precompiled'
+	LDFLAGS += -Wl,-rpath-link=./lib/precompiled
 
 
 else ifeq ($(UNAME), Darwin)
