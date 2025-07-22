@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD046 -->
 # AI File Sorter
 
 [![Version](https://badgen.net/badge/version/0.9.0/green)](#) [![Donate via PayPal](https://badgen.net/badge/donate/PayPal/blue)](https://paypal.me/aifilesorter)
@@ -10,21 +11,45 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 
 ---
 
-- [Changelog](#changelog)
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-  - [Windows](#windows)
-  - [MacOS](#macos)
-  - [Linux](#linux)
-- [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption)
-- [Uninstallation](#uninstallation)
-- [How to Use](#how-to-use)
-- [Sorting a Remote Directory (e.g., NAS)](#sorting-a-remote-directory-eg-nas)  
-- [Contributing](#contributing)
-- [License](#license)
-- [Credits](#credits)
-- [Donation](#donation)
+- [AI File Sorter](#ai-file-sorter)
+  - [Changelog](#changelog)
+    - [\[0.9.0\] - 2025-07-18](#090---2025-07-18)
+  - [Features](#features)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+    - [Windows](#windows)
+      - [Install Git](#install-git)
+        - [Clone the repository](#clone-the-repository)
+        - [Navigate into the directory](#navigate-into-the-directory)
+      - [Compile the app](#compile-the-app)
+    - [MacOS](#macos)
+        - [Clone the repository](#clone-the-repository-1)
+        - [Navigate into the directory](#navigate-into-the-directory-1)
+      - [Compile the app](#compile-the-app-1)
+  - [Uninstallation](#uninstallation)
+    - [Linux](#linux)
+        - [Clone the repository](#clone-the-repository-2)
+        - [Navigate into the directory](#navigate-into-the-directory-2)
+      - [Compile the app](#compile-the-app-2)
+      - [1. Install the dependencies](#1-install-the-dependencies)
+        - [Debian / Ubuntu](#debian--ubuntu)
+        - [Fedora / RedHat](#fedora--redhat)
+        - [Arch / Manjaro](#arch--manjaro)
+      - [2. Compile `llama.cpp`](#2-compile-llamacpp)
+        - [Debian / Ubuntu](#debian--ubuntu-1)
+        - [Fedora / RedHat](#fedora--redhat-1)
+        - [Arch / Manjaro](#arch--manjaro-1)
+        - [All Linux](#all-linux)
+      - [3. \[Optional\] Get API key](#3-optional-get-api-key)
+      - [4. Compile and install AI File Sorter](#4-compile-and-install-ai-file-sorter)
+  - [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption)
+  - [Uninstallation](#uninstallation-1)
+  - [How to Use](#how-to-use)
+  - [Sorting a Remote Directory (e.g., NAS)](#sorting-a-remote-directory-eg-nas)
+  - [Contributing](#contributing)
+  - [Credits](#credits)
+  - [License](#license)
+  - [Donation](#donation)
 
 ---
 
@@ -125,16 +150,14 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
 8. In `Developer PowerShell for VS 2022`, run
 
     **If you have CUDA**:
-    ```
-    powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=on
-    ```
+
+      powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=on
 
     **If you don't have CUDA**:
-    
-      powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=off
-    
 
-9. **Optional** (not needed if you want to use only local LLMs for file sorting). Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here. The app won't work otherwise.
+      powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=off
+
+9. **Optional** (not needed if you want to use only local LLMs for file sorting). Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here.
 
 10. Go back the `MSYS2 MINGW64` shell (ensure you ran it *as Administrator*, otherwise `make install` won't work). Go to the cloned repo's `app/resources` path (e.g., `/c/Users/username/repos/ai-file-sorter/app/resources`) and run `bash compile-resources.sh`. Go to the `app` directory (`cd ..`).
 
@@ -175,7 +198,7 @@ To uninstall, launch `MSYS2 MINGW64` (**NOT** `MSYS2 MSYS`) *as Administrator*, 
    brew install --cask font-0xproto
    ```
 
-4. Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here. The app won't work otherwise.
+4. Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here.
 
 5. Go to `app/resources` and run `./compile-resources.sh`. Go back to the `app` directory.
 
@@ -193,41 +216,108 @@ Use `sudo make uninstall` in the same `app` subdirectory
 
 ##### Clone the repository
 
-    git clone https://github.com/hyperfield/ai-file-sorter.git
-    cd ai-file-sorter
-    git submodule update --init --recursive --remote
+```bash
+git clone https://github.com/hyperfield/ai-file-sorter.git
+cd ai-file-sorter
+git submodule update --init --recursive --remote
+```
 
 ##### Navigate into the directory
 
-    cd ai-file-sorter
+```bash
+cd ai-file-sorter
+```
 
 #### Compile the app
 
-#### 1. Install dependencies:
+#### 1. Install the dependencies
 
-##### Debian / Ubuntu:
-
-```bash
-sudo apt update && sudo apt install -y build-essential libgtk-3-dev libgdk-pixbuf2.0-dev libglib2.0-dev libcurl4-openssl-dev libjsoncpp-dev libsqlite3-dev libssl-dev libx11-dev libxi-dev libxfixes-dev libcairo2-dev libatk1.0-dev libepoxy-dev libharfbuzz-dev libfontconfig1-dev libfmt-dev libspdlog-dev libpng-dev libjpeg-dev libffi-dev libpcre3-dev libnghttp2-dev libidn2-0-dev librtmp-dev libssh-dev libpsl-dev libkrb5-dev libldap2-dev libbrotli-dev libxcb1-dev libxrandr-dev libxinerama-dev libxkbcommon-dev libwayland-dev libthai-dev libfreetype6-dev libgraphite2-dev libgnutls28-dev libp11-kit-dev liblzma-dev liblz4-dev libgcrypt20-dev libsystemd-dev
-```
-
-##### Fedora / RedHat:
+##### Debian / Ubuntu
 
 ```bash
-sudo dnf install -y gcc-c++  gtk3-devel gdk-pixbuf2-devel glib2-devel libcurl-devel jsoncpp-devel sqlite-devel openssl-devel libX11-devel libXi-devel libXfixes-devel cairo-devel atk-devel epoxy-devel harfbuzz-devel fontconfig-devel libpng-devel libjpeg-turbo-devel libffi-devel pcre-devel libnghttp2-devel libidn2-devel librtmp-devel libssh-devel libpsl-devel krb5-devel openldap-devel brotli-devel libxcb-devel libXrandr-devel libXinerama-devel xkbcommon-devel wayland-devel libthai-devel freetype-devel graphite2-devel gnutls-devel p11-kit-devel xz-devel lz4-devel libgcrypt-devel systemd-devel fmt-devel spdlog-devel
+sudo apt update && sudo apt install -y build-essential cmake libgtk-3-dev libgtkmm-3.0-dev libgdk-pixbuf2.0-dev libglib2.0-dev libcurl4-openssl-dev libjsoncpp-dev libsqlite3-dev libssl-dev libx11-dev libxi-dev libxfixes-dev libcairo2-dev libatk1.0-dev libepoxy-dev libharfbuzz-dev libfontconfig1-dev libfmt-dev libspdlog-dev libpng-dev libjpeg-dev libffi-dev libpcre3-dev libnghttp2-dev libidn2-0-dev librtmp-dev libssh-dev libpsl-dev libkrb5-dev libldap2-dev libbrotli-dev libxcb1-dev libxrandr-dev libxinerama-dev libxkbcommon-dev libwayland-dev libthai-dev libfreetype6-dev libgraphite2-dev libgnutls28-dev libp11-kit-dev iblzma-dev liblz4-dev libgcrypt20-dev libsystemd-dev ocl-icd-opencl-dev
 ```
 
-##### Arch / Manjaro:
+##### Fedora / RedHat
 
 ```bash
-sudo pacman -Syu --needed gcc gtk3 gdk-pixbuf2 glib2 curl jsoncpp sqlite openssl libx11 libxi libxfixes cairo atk epoxy harfbuzz fontconfig libpng libjpeg-turbo libffi pcre libnghttp2 libidn2 librtmp0 libssh libpsl krb5 openldap brotli libxcb libxrandr libxinerama xkbcommon wayland libthai freetype2 graphite gnutls p11-kit xz lz4 libgcrypt systemd fmt spdlog
+sudo dnf install -y gcc-c++ make cmake gtk3-devel gtkmm30-devel gdk-pixbuf2-devel glib2-devel   libcurl-devel jsoncpp-devel sqlite-devel openssl-devel libX11-devel libXi-devel libXfixes-devel cairo-devel atk-devel epoxy-devel harfbuzz-devel fontconfig-devel fmt-devel spdlog-devel libpng-devel libjpeg-turbo-devel libffi-devel pcre-devel libnghttp2-devel libidn2-devel librtmp-devel libssh-devel libpsl-devel krb5-devel openldap-devel brotli-devel xcb-util-devel libXrandr-devel libXinerama-devel xkbcommon-devel wayland-devel libthai-devel freetype-devel graphite2-devel gnutls-devel p11-kit-devel xz-devel lz4-devel libgcrypt-devel systemd-devel ocl-icd-devel
 ```
 
-2. Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here. The app won't work otherwise.
+##### Arch / Manjaro
 
-3. Go to `app/resources` and run `./compile-resources.sh`. Go back to the `app` directory.
+```bash
+sudo pacman -Syu --needed base-devel cmake gtk3 gtkmm3 gdk-pixbuf2 glib2 curl jsoncpp sqlite openssl libx11 libxi libxfixes cairo atk epoxy harfbuzz fontconfig fmt spdlog libpng libjpeg-turbo libffi pcre nghttp2 libidn2 rtmpdump libssh libpsl krb5 openldap brotli libxcb libxrandr libxinerama xkbcommon wayland libthai freetype2 graphite gnutls p11-kit xz lz4 libgcrypt systemd opencl-headers ocl-icd
+```
 
-4. Run `make`, `sudo make install`, `make clean`. Then you can launch the app with the command `aifilesorter`.
+#### 2. Compile `llama.cpp`
+
+##### Debian / Ubuntu
+
+- If you are going to compile `llama.cpp` with CUDA (you have an Nvidia GPU), you need `g++` of at least version 10 and CUDA Toolkit:
+
+  ```bash
+  sudo apt install g++-10 nvidia-cuda-toolkit
+  ```
+
+##### Fedora / RedHat
+
+- If you are going to compile `llama.cpp` with CUDA (you have an Nvidia GPU), you need `g++` of at least version 10  and CUDA Toolkit:
+
+  ```bash
+  sudo dnf install gcc-toolset-10
+  ```
+
+  Then enable it with:
+
+  ```bash
+  scl enable gcc-toolset-10 bash
+  ```
+
+  Download CUDA from [Nvidia](https://developer.nvidia.com/cuda-downloads?target_os=Linux) and install it.
+
+##### Arch / Manjaro
+
+- If you are going to compile `llama.cpp` with CUDA, you need CUDA Toolkit:
+
+  ```bash
+  sudo pacman -S cuda
+  ```
+
+##### All Linux
+
+- If you have CUDA, run
+
+  ```bash
+  scripts/build_llama_linux.sh cuda=on
+  ```
+
+- If you don't have CUDA, run
+
+  ```bash
+  scripts/build_llama_linux.sh
+  ```
+
+#### 3. [Optional] Get API key
+
+*Only needed if you want to be able to use the Remote LLM (ChatGPT o4-mini)*.
+
+Go to the section [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 4 here.
+
+#### 4. Compile and install AI File Sorter
+
+While still in `ai-file-sorter/app`, run
+
+```bash
+make
+sudo make install
+```
+
+Run the app with
+
+```bash
+aifilesorter
+```
 
 ---
 
