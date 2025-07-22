@@ -25,12 +25,15 @@ cd "$LLAMA_DIR"
 rm -rf build
 mkdir -p build
 
-# To compile shared libs:
+# Compile shared libs:
+echo "Inside script: CC=$CC, CXX=$CXX"
+
 cmake -S . -B build -DGGML_CUDA=$CUDASWITCH \
-  -DGGML_OPENCL=ON \
-  -DGGML_BLAS=ON \
-  -DGGML_BLAS_VENDOR=OpenBLAS \
-  -DBUILD_SHARED_LIBS=ON
+      -DGGML_OPENCL=ON \
+      -DGGML_BLAS=ON \
+      -DGGML_BLAS_VENDOR=OpenBLAS \
+      -DBUILD_SHARED_LIBS=ON \
+      -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++-10
 
 cmake --build build --config Release -- -j$(nproc)
 
