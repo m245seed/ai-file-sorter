@@ -35,7 +35,8 @@ LocalLLMClient::LocalLLMClient(const std::string& model_path)
             std::cout << "ngl: " << model_params.n_gpu_layers << std::endl;
         } else {
             model_params.n_gpu_layers = 0;
-            printf("model_params.n_gpu_layers: %d\n", model_params.n_gpu_layers);
+            printf("model_params.n_gpu_layers: %d\n",
+                model_params.n_gpu_layers);
             std::vector<std::string> devices;
             if (Utils::is_opencl_available(&devices)) {
                 std::cout << "OpenCL is available.\n";
@@ -71,7 +72,8 @@ LocalLLMClient::LocalLLMClient(const std::string& model_path)
 }
 
 
-std::string LocalLLMClient::make_prompt(const std::string& file_name, FileType file_type)
+std::string LocalLLMClient::make_prompt(const std::string& file_name,
+                                        FileType file_type)
 {
     std::string prompt;
     if (file_type == FileType::File) {
@@ -96,7 +98,8 @@ std::string LocalLLMClient::make_prompt(const std::string& file_name, FileType f
 }
 
 
-std::string LocalLLMClient::generate_response(const std::string &prompt, int n_predict)
+std::string LocalLLMClient::generate_response(const std::string &prompt,
+                                              int n_predict)
 {
     llama_free(ctx);
     ctx = llama_init_from_model(model, ctx_params);
@@ -160,15 +163,15 @@ std::string LocalLLMClient::generate_response(const std::string &prompt, int n_p
 }
 
 
-std::string LocalLLMClient::categorize_file(const std::string& file_name, FileType file_type)
+std::string LocalLLMClient::categorize_file(const std::string& file_name,
+                                            FileType file_type)
 {
     std::string prompt = make_prompt(file_name, file_type);
     return generate_response(prompt, 64);
 }
 
 
-std::string LocalLLMClient::sanitize_output(std::string& output)
-{
+std::string LocalLLMClient::sanitize_output(std::string& output) {
     output.erase(0, output.find_first_not_of(" \t\n\r\f\v"));
     output.erase(output.find_last_not_of(" \t\n\r\f\v") + 1);
 
@@ -193,8 +196,7 @@ std::string LocalLLMClient::sanitize_output(std::string& output)
 }
 
 
-LocalLLMClient::~LocalLLMClient()
-{
+LocalLLMClient::~LocalLLMClient() {
     if (smpl) llama_sampler_free(smpl);
     if (ctx) llama_free(ctx);
     if (model) llama_model_free(model);
