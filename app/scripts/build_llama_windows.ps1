@@ -73,4 +73,4 @@ Copy-Item "$llamaDir\include\llama.h" -Destination $headersDir
 Copy-Item "$llamaDir\ggml\src\*.h" -Destination $headersDir -ErrorAction SilentlyContinue
 Copy-Item "$llamaDir\ggml\include\*.h" -Destination $headersDir -ErrorAction SilentlyContinue
 
-Write-Host "`n✅ Build complete. Precompiled DLLs updated in: $precompiledLibsDir`n"
+Write-Host "`n Build complete. Precompiled DLLs updated in: $precompiledLibsDir`n"
