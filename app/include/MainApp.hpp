@@ -5,7 +5,7 @@
 #include "CategorizationProgressDialog.hpp"
 #include "DatabaseManager.hpp"
 #include "FileScanner.hpp"
-#include "LLMClient.hpp"
+#include "ILLMClient.hpp"
 #include "Settings.hpp"
 
 #include <gtk/gtk.h>
@@ -14,6 +14,7 @@
 #include <gtkmm/treeview.h>
 #include <gtkmm/liststore.h>
 #include <memory>
+#include <optional>
 #include <spdlog/logger.h>
 #include <string>
 #include <thread>
@@ -23,7 +24,7 @@
 struct CheckboxData {
         MainApp* app;
         GtkCheckButton* other_checkbox;
-    };
+};
 
 
 class MainApp {
@@ -34,14 +35,15 @@ public:
     std::vector<CategorizedFile> new_files_with_categories;
     std::vector<FileEntry> files_to_categorize;
     std::vector<CategorizedFile> new_files_to_sort;
-    
+
     CategorizationProgressDialog* progress_dialog;
-    
+
     MainApp(int argc, char **argv, Settings& settings);
     ~MainApp();
     void run();
     void shutdown();
-    void show_results_dialog(const std::vector<CategorizedFile> &categorized_files);
+    void show_results_dialog(
+        const std::vector<CategorizedFile> &categorized_files);
     void show_error_dialog(const std::string &message);
 
     std::thread analyze_thread;
@@ -54,9 +56,11 @@ public:
         std::string category;
         std::string subcategory;
 
-        AnalysisContext(MainApp* app_instance, const std::string& name, const FileType& type,
-                        const std::string& cat, const std::string& subcat)
-            : app(app_instance), file_name(name), file_type(type), category(cat), subcategory(subcat) {}
+        AnalysisContext(MainApp* app_instance, const std::string& name,
+                        const FileType& type, const std::string& cat,
+                        const std::string& subcat)
+            : app(app_instance), file_name(name), file_type(type),
+              category(cat), subcategory(subcat) {}
     };
 
 private:
@@ -79,6 +83,10 @@ private:
     CheckboxData* data_for_directories = nullptr;
     bool using_local_llm{false};
 
+    std::tuple<std::string, std::string>
+    categorize_file(ILLMClient& llm, const std::string& item_name,
+                const FileType file_type,
+                const std::function<void(const std::string&)>& report_progress);
     GtkApplication *create_app();
     void initialize_checkboxes();
     static void on_file_chooser_response(GtkDialog *dialog, gint response, gpointer user_data);
@@ -92,11 +100,15 @@ private:
     void initialize_builder();
     void setup_main_window();
     void initialize_ui_components();
+    std::unique_ptr<ILLMClient> make_llm_client();
+    std::optional<CategorizedFile> categorize_single_file(
+        ILLMClient& llm, const FileEntry& entry);
     void start_updater();
     void on_about_activate();
     void on_donate_activate();
     void set_app_icon();
     void connect_ui_signals();
+    void report_progress(const std::string& message);
     void show_llm_selection_dialog();
     static void on_activate_wrapper(GtkApplication *gtk_app, gpointer user_data);
     std::string get_folder_path();
@@ -104,10 +116,6 @@ private:
         categorize_files(const std::vector<FileEntry>& files);
     std::string categorize_with_timeout(ILLMClient &llm, const std::string &item_name,
                                         const FileType file_type, int timeout_seconds);
-    std::tuple<std::string, std::string> categorize_file(ILLMClient& llm,
-                                                         const std::string &item_name,
-                                                         const FileType file_type,
-                                                         const std::function<void(const std::string&)>& report_progress);
     std::vector<FileEntry> find_files_to_categorize(
         const std::string& directory_path, const std::unordered_set<std::string>& cached_files);
     static void on_analyze_button_clicked(GtkButton *button, gpointer user_data);

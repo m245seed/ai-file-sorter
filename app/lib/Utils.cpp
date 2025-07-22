@@ -319,8 +319,8 @@ bool Utils::is_cuda_available() {
     }
 
     typedef int (*cudaGetDeviceCount_t)(int*);
-    auto cudaGetDeviceCount = (cudaGetDeviceCount_t)getSymbol(handle,
-                                                        "cudaGetDeviceCount");
+    auto cudaGetDeviceCount = reinterpret_cast<cudaGetDeviceCount_t>(
+                                    getSymbol(handle, "cudaGetDeviceCount"));
     std::cerr << "[CUDA] Lookup cudaGetDeviceCount symbol: " << (
         cudaGetDeviceCount ? "Found" : "Not Found") << std::endl;
 

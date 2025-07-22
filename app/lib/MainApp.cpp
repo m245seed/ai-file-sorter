@@ -507,72 +507,151 @@ std::tuple<std::string, std::string> split_category_subcategory(const std::strin
 }
 
 
-std::vector<CategorizedFile>
-MainApp::categorize_files(const std::vector<FileEntry>& items) {
-    std::unique_ptr<ILLMClient> llm;
+// std::vector<CategorizedFile>
+// MainApp::categorize_files(const std::vector<FileEntry>& items) {
+//     std::unique_ptr<ILLMClient> llm;
 
+//     if (settings.get_llm_choice() == LLMChoice::Remote) {
+//         CategorizationSession categorization_session;
+//         llm = std::make_unique<LLMClient>(
+//             categorization_session.create_llm_client());
+//     } else if (settings.get_llm_choice() == LLMChoice::Local_3b) {
+//         std::string url = std::getenv("LOCAL_LLM_3B_DOWNLOAD_URL");
+//         llm = std::make_unique<LocalLLMClient>(
+//             Utils::make_default_path_to_file_from_download_url(url));
+//     } else {
+//         std::string url = std::getenv("LOCAL_LLM_7B_DOWNLOAD_URL");
+//         llm = std::make_unique<LocalLLMClient>(
+//             Utils::make_default_path_to_file_from_download_url(url));
+//     }
+
+//     std::vector<CategorizedFile> categorized_items;
+
+//     for (const auto &[full_path, name, type] : items) {
+//         if (stop_analysis) {
+//             core_logger->info("Stopping categorization at user request...\n");
+//             return categorized_items;
+//         }
+
+//         try {
+//             const std::string& dir_path = std::filesystem::path(full_path)
+//                 .parent_path().string();
+
+//             auto report_progress = [this](const std::string& message) {
+//                 auto progress_data = std::make_unique<std::pair<MainApp*,
+//                     std::string>>(this, message);
+
+//                 g_idle_add([](gpointer user_data) -> gboolean {
+//                     auto progress_data = std::unique_ptr<std::pair<MainApp*,
+//                         std::string>>(
+//                             static_cast<std::pair<MainApp*,
+//                             std::string>*>(user_data));
+
+//                     if (progress_data->first->progress_dialog) {
+//                         progress_data->first->progress_dialog->append_text(
+//                             progress_data->second + "\n");
+//                     }
+
+//                     return G_SOURCE_REMOVE;
+//                 }, progress_data.release());
+//             };
+
+//             auto [category, subcategory] = categorize_file(
+//                                             *llm, name, type, report_progress);
+
+//             categorized_items.emplace_back(CategorizedFile{
+//                                                 dir_path,
+//                                                 name,
+//                                                 type,
+//                                                 category,
+//                                                 subcategory
+//                                             });
+
+//         } catch (const std::exception& ex) {
+//             std::string error_message = "Error categorizing file \"" +
+//                 name + "\": " + ex.what();
+//             DialogUtils::show_error_dialog(GTK_WINDOW(this->main_window),
+//                                            error_message);
+//             core_logger->error("%s\n", error_message.c_str());
+//             break;
+//         }
+//     }
+
+//     return categorized_items;
+// }
+
+
+void MainApp::report_progress(const std::string& message) {
+    auto progress_data = std::make_unique<
+        std::pair<MainApp*, std::string>>(this, message);
+    g_idle_add([](gpointer user_data) -> gboolean {
+        auto progress_data = std::unique_ptr<std::pair<MainApp*, std::string>>(
+            static_cast<std::pair<MainApp*, std::string>*>(user_data));
+        if (progress_data->first->progress_dialog) {
+            progress_data->first->progress_dialog->append_text(
+                progress_data->second + "\n");
+        }
+        return G_SOURCE_REMOVE;
+    }, progress_data.release());
+}
+
+
+std::unique_ptr<ILLMClient> MainApp::make_llm_client() {
     if (settings.get_llm_choice() == LLMChoice::Remote) {
         CategorizationSession categorization_session;
-        llm = std::make_unique<LLMClient>(
+        return std::make_unique<LLMClient>(
             categorization_session.create_llm_client());
-    } else if (settings.get_llm_choice() == LLMChoice::Local_3b) {
-        std::string url = std::getenv("LOCAL_LLM_3B_DOWNLOAD_URL");
-        llm = std::make_unique<LocalLLMClient>(
-            Utils::make_default_path_to_file_from_download_url(url));
-    } else {
-        std::string url = std::getenv("LOCAL_LLM_7B_DOWNLOAD_URL");
-        llm = std::make_unique<LocalLLMClient>(
-            Utils::make_default_path_to_file_from_download_url(url));
     }
 
+    const char* env_var = settings.get_llm_choice() == LLMChoice::Local_3b
+        ? "LOCAL_LLM_3B_DOWNLOAD_URL"
+        : "LOCAL_LLM_7B_DOWNLOAD_URL";
+
+    std::string url = std::getenv(env_var);
+    return std::make_unique<LocalLLMClient>(
+        Utils::make_default_path_to_file_from_download_url(url));
+}
+
+
+std::optional<CategorizedFile> MainApp::categorize_single_file(
+    ILLMClient& llm,
+    const FileEntry& entry
+) {
+    if (stop_analysis) return std::nullopt;
+
+    try {
+        std::string dir_path = std::filesystem::path(entry.full_path)
+                                                .parent_path().string();
+
+        auto [category, subcategory] = categorize_file(
+            llm, entry.file_name, entry.type,
+            [this](const std::string& msg) {
+                report_progress(msg);
+            });
+
+        return CategorizedFile{dir_path, entry.file_name, entry.type,
+                               category, subcategory};
+    } catch (const std::exception& ex) {
+        std::string error_message = "Error categorizing file \"" +
+            entry.file_name + "\": " + ex.what();
+        DialogUtils::show_error_dialog(GTK_WINDOW(
+            this->main_window), error_message);
+        core_logger->error("%s\n", error_message.c_str());
+        return std::nullopt;
+    }
+}
+
+
+std::vector<CategorizedFile> MainApp::categorize_files(
+    const std::vector<FileEntry>& items)
+{
+    std::unique_ptr<ILLMClient> llm = make_llm_client();
     std::vector<CategorizedFile> categorized_items;
 
-    for (const auto &[full_path, name, type] : items) {
-        if (stop_analysis) {
-            core_logger->info("Stopping categorization at user request...\n");
-            return categorized_items;
-        }
-
-        try {
-            const std::string& dir_path = std::filesystem::path(full_path)
-                .parent_path().string();
-
-            auto report_progress = [this](const std::string& message) {
-                auto progress_data = std::make_unique<std::pair<MainApp*,
-                    std::string>>(this, message);
-
-                g_idle_add([](gpointer user_data) -> gboolean {
-                    auto progress_data = std::unique_ptr<std::pair<MainApp*,
-                        std::string>>(
-                            static_cast<std::pair<MainApp*,
-                            std::string>*>(user_data));
-
-                    if (progress_data->first->progress_dialog) {
-                        progress_data->first->progress_dialog->append_text(
-                            progress_data->second + "\n");
-                    }
-
-                    return G_SOURCE_REMOVE;
-                }, progress_data.release());
-            };
-
-            auto [category, subcategory] = categorize_file(
-                                            *llm, name, type, report_progress);
-
-            categorized_items.emplace_back(CategorizedFile{
-                                                dir_path,
-                                                name,
-                                                type,
-                                                category,
-                                                subcategory
-                                            });
-
-        } catch (const std::exception& ex) {
-            std::string error_message = "Error categorizing file \"" + name + "\": " + ex.what();
-            DialogUtils::show_error_dialog(GTK_WINDOW(this->main_window), error_message);
-            core_logger->error("%s\n", error_message.c_str());
-            break;
-        }
+    for (const auto& entry : items) {
+        auto result = categorize_single_file(*llm, entry);
+        if (!result.has_value()) break;
+        categorized_items.push_back(std::move(result.value()));
     }
 
     return categorized_items;
