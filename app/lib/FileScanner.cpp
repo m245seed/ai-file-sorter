@@ -26,16 +26,23 @@ FileScanner::get_directory_entries(const std::string &directory_path,
 
         if (is_junk_file(file_name)) continue;
 
-        if (has_flag(options, FileScanOptions::Files) &&
-            fs::is_regular_file(entry)) {
-            if (has_flag(options, FileScanOptions::HiddenFiles) || !is_hidden) {
+        if (is_file_bundle(entry)) {
+            if (has_flag(options, FileScanOptions::Files) &&
+                (has_flag(options, FileScanOptions::HiddenFiles) || !is_hidden)) {
                 file_type = FileType::File;
                 should_add = true;
             }
         }
-        else if (has_flag(options, FileScanOptions::Directories) &&
-                 fs::is_directory(entry)) {
-            if (has_flag(options, FileScanOptions::HiddenFiles) || !is_hidden) {
+        else if (fs::is_regular_file(entry)) {
+            if (has_flag(options, FileScanOptions::Files) &&
+                (has_flag(options, FileScanOptions::HiddenFiles) || !is_hidden)) {
+                file_type = FileType::File;
+                should_add = true;
+            }
+        }
+        else if (fs::is_directory(entry)) {
+            if (has_flag(options, FileScanOptions::Directories) &&
+                (has_flag(options, FileScanOptions::HiddenFiles) || !is_hidden)) {
                 file_type = FileType::Directory;
                 should_add = true;
             }
@@ -66,4 +73,19 @@ bool FileScanner::is_junk_file(const std::string& name) {
         ".DS_Store", "Thumbs.db", "desktop.ini"
     };
     return junk.contains(name);
+}
+
+
+bool FileScanner::is_file_bundle(const fs::path& path) {
+    static const std::unordered_set<std::string> bundle_extensions = {
+        ".app", ".utm", ".vmwarevm", ".pvm", ".vbox", ".pkg", ".mpkg",
+        ".prefPane", ".plugin", ".framework", ".kext", ".qlgenerator",
+        ".mdimporter", ".wdgt", ".scptd", ".nib", ".xib"
+    };
+    if (!fs::is_directory(path)) return false;
+
+    std::string ext = path.extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+    return bundle_extensions.contains(ext);
 }
