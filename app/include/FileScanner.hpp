@@ -17,6 +17,7 @@ public:
 
 private:
     bool is_file_hidden(const fs::path &path);
+    bool is_junk_file(const std::string& name);
 };
 
 #endif
