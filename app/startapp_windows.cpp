@@ -6,6 +6,14 @@
 #include <vector>
 
 
+std::wstring utf8ToUtf16(const std::string& str) {
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
+    std::wstring wstr(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], size_needed);
+    return wstr;
+}
+
+
 bool isCudaAvailable() {
     for (int i = 9; i <= 20; ++i) {
         std::string dllName = "cudart64_" + std::to_string(i) + ".dll";
@@ -65,7 +73,7 @@ void addToPath(const std::string& directory) {
 
 
 void launchMainApp() {
-    std::string exePath = "bin\\AI File Sorter.exe";
+    std::string exePath = "AI File Sorter.exe";
     if (WinExec(exePath.c_str(), SW_SHOW) < 32) {
         std::cerr << "Failed to launch the application." << std::endl;
     }
@@ -82,7 +90,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
         return EXIT_FAILURE;
     }
 
-    addToPath(exeDir + "\\lib");
+    std::string dllPath = exeDir + "\\lib";
+    addToPath(dllPath);
 
     bool hasCuda = isCudaAvailable();
     bool hasOpenCL = isOpenCLAvailable();
@@ -93,6 +102,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
     std::string ggmlPath = exeDir + "\\lib\\ggml\\" + folderName;
     addToPath(ggmlPath);
+    AddDllDirectory(utf8ToUtf16(ggmlPath).c_str());
 
     launchMainApp();
     return EXIT_SUCCESS;
