@@ -33,7 +33,7 @@ CategorizationProgressDialog::CategorizationProgressDialog(GtkWindow* parent, Ma
                     g_warning("MainApp pointer is null!");
                     return;
                 }
-                std::string message = "\nStop button clicked.\n";
+                std::string message = "\nStopping...\n";
                 app->progress_dialog->append_text(message);
                 app->stop_analysis = true;
             }),
