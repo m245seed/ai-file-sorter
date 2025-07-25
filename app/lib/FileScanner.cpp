@@ -1,4 +1,5 @@
 #include "FileScanner.hpp"
+#include <algorithm>
 #include <iostream>
 #include <filesystem>
 #include <unordered_set>
