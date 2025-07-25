@@ -323,6 +323,8 @@ aifilesorter
 
 ## API Key, Obfuscation, and Encryption
 
+**Important**: This step is needed *only* if you are going to use the Remote LLM option.
+
 Before compiling the app:
 
 1. Get an OpenAI API key from the [OpenAI website](https://platform.openai.com/).  
