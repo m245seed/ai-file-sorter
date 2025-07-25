@@ -6,6 +6,57 @@
 #include <vector>
 
 
+typedef unsigned int cl_uint;
+typedef int cl_int;
+typedef void* cl_platform_id;
+typedef void* cl_device_id;
+
+#define CL_SUCCESS 0
+#define CL_DEVICE_TYPE_ALL 0xFFFFFFFF
+
+
+bool isOpenCLUsable() {
+    typedef unsigned int cl_uint;
+    typedef int cl_int;
+    typedef void* cl_platform_id;
+    typedef void* cl_device_id;
+
+    #define CL_SUCCESS 0
+    #define CL_DEVICE_TYPE_ALL 0xFFFFFFFF
+
+    typedef cl_int (__stdcall *clGetPlatformIDs_t)(cl_uint, cl_platform_id*, cl_uint*);
+    typedef cl_int (__stdcall *clGetDeviceIDs_t)(cl_platform_id, cl_uint, cl_uint, cl_device_id*, cl_uint*);
+
+    HMODULE openclLib = LoadLibraryA("OpenCL.dll");
+    if (!openclLib) return false;
+
+    auto clGetPlatformIDs = (clGetPlatformIDs_t)GetProcAddress(openclLib, "clGetPlatformIDs");
+    auto clGetDeviceIDs   = (clGetDeviceIDs_t)GetProcAddress(openclLib, "clGetDeviceIDs");
+
+    if (!clGetPlatformIDs || !clGetDeviceIDs) {
+        FreeLibrary(openclLib);
+        return false;
+    }
+
+    cl_platform_id platform;
+    cl_uint numPlatforms = 0;
+    if (clGetPlatformIDs(1, &platform, &numPlatforms) != CL_SUCCESS || numPlatforms == 0) {
+        FreeLibrary(openclLib);
+        return false;
+    }
+
+    cl_device_id device;
+    cl_uint numDevices = 0;
+    if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 1, &device, &numDevices) != CL_SUCCESS || numDevices == 0) {
+        FreeLibrary(openclLib);
+        return false;
+    }
+
+    FreeLibrary(openclLib);
+    return true;
+}
+
+
 std::wstring utf8ToUtf16(const std::string& str) {
     int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
     std::wstring wstr(size_needed, 0);
@@ -22,16 +73,6 @@ bool isCudaAvailable() {
             FreeLibrary(lib);
             return true;
         }
-    }
-    return false;
-}
-
-
-bool isOpenCLAvailable() {
-    HMODULE opencl = LoadLibraryA("OpenCL.dll");
-    if (opencl) {
-        FreeLibrary(opencl);
-        return true;
     }
     return false;
 }
@@ -94,7 +135,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     addToPath(dllPath);
 
     bool hasCuda = isCudaAvailable();
-    bool hasOpenCL = isOpenCLAvailable();
+    bool hasOpenCL = isOpenCLUsable();
 
     std::string folderName;
     folderName += hasCuda ? "wcuda" : "wocuda";
