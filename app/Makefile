@@ -51,7 +51,7 @@ else ifeq ($(UNAME), MINGW64_NT)
     RC_FILE = resources/exe_icon.rc
     RC_OBJ = resources/exe_icon.o
 
-    LDFLAGS += -mwindows -lwininet -ljsoncpp -lcrypto -lcurl -lspdlog -lsqlite3 -lssl -lfmt -lllama -lggml
+    LDFLAGS += -lwininet -ljsoncpp -lcrypto -lcurl -lspdlog -lsqlite3 -lssl -lfmt -lllama -lggml
 endif
 
 # Compiler and flags
@@ -140,16 +140,16 @@ else ifeq ($(PLATFORM), Windows (64-bit))
 	$(foreach dll, \
 		libcairo-2 libfribidi-0 libharfbuzz-0 libpango-1.0-0 libssl-3-x64 \
 		libcairo-gobject-2 libgcc_s_seh-1 libiconv-2 libpangocairo-1.0-0 \
-		libstdc++-6 libcrypto-3-x64 libgdk-3-0 libgdk_pixbuf-2.0-0 libidn2-0 \
-		libpangoft2-1.0-0 libgio-2.0-0 libintl-8 libzstd libjbig-0 libwebp-7 \
-		libthai-0 libtiff-6 libcurl-4 libdatrie-1 libgiomm-2.4-1 libjpeg-8 \
-		libpcre2-8-0 libpangowin32-1.0-0 libunistring-5 libdeflate libepoxy-0 \
-		libglib-2.0-0 libjsoncpp-26 libpng16-16 libwinpthread-1 libLerc libexpat-1 \
-		libglibmm-2.4-1 liblzma-5 libpsl-5 libatk-1.0-0 libffi-8 libgmodule-2.0-0 \
-		libnghttp2-14 libsharpyuv-0 libbrotlicommon libfmt-11 libgobject-2.0-0 \
-		libnghttp3-9 libsigc-2.0-0 zlib1 libbrotlidec libfontconfig-1 libgraphite2 \
-		libngtcp2-16 libsqlite3-0 libbz2-1 libfreetype-6 libgtk-3-0 libngtcp2_crypto_ossl \
-		libssh2-1 libpixman-1-0, \
+		libstdc++-6 libcrypto-3-x64 libgdk-3-0 libgdk_pixbuf-2.0-0 libgfortran-5 \
+		libidn2-0 libpangoft2-1.0-0 libgio-2.0-0 libintl-8 libgomp-1 libzstd \
+		libjbig-0 libwebp-7 libthai-0 libtiff-6 libcurl-4 libdatrie-1 \
+		libgiomm-2.4-1 libjpeg-8 libpcre2-8-0 libpangowin32-1.0-0 libunistring-5 \
+		libdeflate libepoxy-0 libglib-2.0-0 libjsoncpp-26 libpng16-16 libwinpthread-1 \
+		libLerc libexpat-1 libglibmm-2.4-1 liblzma-5 libpsl-5 libatk-1.0-0 libffi-8 \
+		libgmodule-2.0-0 libnghttp2-14 libsharpyuv-0 libbrotlicommon libfmt-11 \
+		libgobject-2.0-0 libnghttp3-9 libsigc-2.0-0 zlib1 libbrotlidec libfontconfig-1 \
+		libgraphite2 libopenblas libngtcp2-16 libsqlite3-0 libbz2-1 libfreetype-6 \
+		libgtk-3-0 libngtcp2_crypto_ossl libquadmath-0 libssh2-1 libpixman-1-0, \
 		cp -v "C:/msys64/mingw64/bin/$(dll).dll" $(INSTALL_DIR)/;)
 
 	cp -v "C:/msys64/usr/ssl/cert.pem" $(INSTALL_DIR)/certs/cacert.pem
@@ -179,13 +179,13 @@ ifeq ($(PLATFORM), Linux)
 
 	@echo "Core uninstallation complete."
 
-	@read -p "Do you also want to delete the downloaded local LLM models in ~/.local/share/aifilesorter/llms/? [y/N] " ans; \
-	if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
-		echo "Deleting ~/.local/share/aifilesorter/llms/..."; \
-		rm -rf $$HOME/.local/share/aifilesorter/llms; \
-	else \
-		echo "Keeping downloaded models."; \
-	fi
+	@bash -c 'read -p "Do you also want to delete the downloaded local LLM models in ~/.local/share/aifilesorter/llms/? [y/N] " ans; \
+		if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
+			echo "Deleting ~/.local/share/aifilesorter/llms/..."; \
+			rm -rf "$$HOME/.local/share/aifilesorter/llms"; \
+		else \
+			echo "Keeping downloaded models."; \
+		fi'
 
 else ifeq ($(PLATFORM), MacOS)
 	@echo "Uninstalling aifilesorter binary and libraries on macOS..."
