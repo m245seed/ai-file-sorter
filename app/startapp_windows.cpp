@@ -5,6 +5,8 @@
 #include <windows.h>
 #include <vector>
 
+#include <gtk/gtk.h>
+
 
 typedef unsigned int cl_uint;
 typedef int cl_int;
@@ -13,48 +15,6 @@ typedef void* cl_device_id;
 
 #define CL_SUCCESS 0
 #define CL_DEVICE_TYPE_ALL 0xFFFFFFFF
-
-
-bool isOpenCLUsable() {
-    typedef unsigned int cl_uint;
-    typedef int cl_int;
-    typedef void* cl_platform_id;
-    typedef void* cl_device_id;
-
-    #define CL_SUCCESS 0
-    #define CL_DEVICE_TYPE_ALL 0xFFFFFFFF
-
-    typedef cl_int (__stdcall *clGetPlatformIDs_t)(cl_uint, cl_platform_id*, cl_uint*);
-    typedef cl_int (__stdcall *clGetDeviceIDs_t)(cl_platform_id, cl_uint, cl_uint, cl_device_id*, cl_uint*);
-
-    HMODULE openclLib = LoadLibraryA("OpenCL.dll");
-    if (!openclLib) return false;
-
-    auto clGetPlatformIDs = (clGetPlatformIDs_t)GetProcAddress(openclLib, "clGetPlatformIDs");
-    auto clGetDeviceIDs   = (clGetDeviceIDs_t)GetProcAddress(openclLib, "clGetDeviceIDs");
-
-    if (!clGetPlatformIDs || !clGetDeviceIDs) {
-        FreeLibrary(openclLib);
-        return false;
-    }
-
-    cl_platform_id platform;
-    cl_uint numPlatforms = 0;
-    if (clGetPlatformIDs(1, &platform, &numPlatforms) != CL_SUCCESS || numPlatforms == 0) {
-        FreeLibrary(openclLib);
-        return false;
-    }
-
-    cl_device_id device;
-    cl_uint numDevices = 0;
-    if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 1, &device, &numDevices) != CL_SUCCESS || numDevices == 0) {
-        FreeLibrary(openclLib);
-        return false;
-    }
-
-    FreeLibrary(openclLib);
-    return true;
-}
 
 
 std::wstring utf8ToUtf16(const std::string& str) {
@@ -69,6 +29,24 @@ bool isCudaAvailable() {
     for (int i = 9; i <= 20; ++i) {
         std::string dllName = "cudart64_" + std::to_string(i) + ".dll";
         HMODULE lib = LoadLibraryA(dllName.c_str());
+        if (lib) {
+            FreeLibrary(lib);
+            return true;
+        }
+    }
+    return false;
+}
+
+
+bool isNvidiaDriverAvailable() {
+    const char* dlls[] = {
+        "nvml.dll",
+        "nvcuda.dll",
+        "nvapi64.dll"
+    };
+
+    for (const auto& dll : dlls) {
+        HMODULE lib = LoadLibraryA(dll);
         if (lib) {
             FreeLibrary(lib);
             return true;
@@ -113,6 +91,49 @@ void addToPath(const std::string& directory) {
 }
 
 
+void showCudaDownloadDialog(GtkWindow* parent = nullptr) {
+    GtkWidget* dialog = gtk_message_dialog_new(
+        parent,
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_WARNING,
+        GTK_BUTTONS_NONE,
+        nullptr
+    );
+
+    gtk_window_set_title(GTK_WINDOW(dialog), "CUDA Toolkit Missing");
+
+    // Center the dialog on the screen (even if parent is null)
+    gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
+
+    // Set formatted primary and secondary text
+    gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(dialog),
+        "A compatible NVIDIA GPU was detected, but the CUDA Toolkit is missing.\n\n"
+        "CUDA is required for GPU acceleration in this application.\n\n"
+        "Would you like to download and install it now?"
+    );
+
+    gtk_message_dialog_set_markup(GTK_MESSAGE_DIALOG(dialog),
+        "<b>CUDA Toolkit Not Found</b>"
+    );
+
+    // Add "Download" and "Ignore" buttons
+    gtk_dialog_add_button(GTK_DIALOG(dialog), "_Ignore (not recommended)", GTK_RESPONSE_CANCEL);
+    gtk_dialog_add_button(GTK_DIALOG(dialog), "_Download CUDA Toolkit", GTK_RESPONSE_OK);
+
+    // Set default response
+    gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_OK);
+
+    // Run the dialog and capture response
+    gint result = gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+
+    if (result == GTK_RESPONSE_OK) {
+        ShellExecuteA(nullptr, "open", "https://developer.nvidia.com/cuda-downloads", nullptr, nullptr, SW_SHOWNORMAL);
+        exit(EXIT_SUCCESS);
+    }
+}
+
+
 void launchMainApp() {
     std::string exePath = "AI File Sorter.exe";
     if (WinExec(exePath.c_str(), SW_SHOW) < 32) {
@@ -135,11 +156,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     addToPath(dllPath);
 
     bool hasCuda = isCudaAvailable();
-    bool hasOpenCL = isOpenCLUsable();
+    bool hasNvidiaDriver = isNvidiaDriverAvailable();
+
+    if (hasNvidiaDriver && !hasCuda) {
+        gtk_init(nullptr, nullptr);
+        showCudaDownloadDialog();
+    }
 
     std::string folderName;
-    folderName += hasCuda ? "wcuda" : "wocuda";
-    folderName += hasOpenCL ? "wopencl" : "woopencl";
+    folderName += hasCuda && hasNvidiaDriver ? "wcuda" : "wocuda";
 
     std::string ggmlPath = exeDir + "\\lib\\ggml\\" + folderName;
     addToPath(ggmlPath);
