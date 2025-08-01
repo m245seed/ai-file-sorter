@@ -29,7 +29,7 @@ mkdir -p build
 echo "Inside script: CC=$CC, CXX=$CXX"
 
 cmake -S . -B build -DGGML_CUDA=$CUDASWITCH \
-      -DGGML_OPENCL=ON \
+      -DGGML_OPENCL=OFF \
       -DGGML_BLAS=ON \
       -DGGML_BLAS_VENDOR=OpenBLAS \
       -DBUILD_SHARED_LIBS=ON \
