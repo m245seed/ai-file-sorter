@@ -20,15 +20,13 @@ LLMDownloader::LLMDownloader(const std::string& download_url)
 }
 
 
-void LLMDownloader::set_download_destination()
-{
+void LLMDownloader::set_download_destination() {
     std::filesystem::create_directories(destination_dir);
     download_destination = Utils::make_default_path_to_file_from_download_url(url);
 }
 
 
-void LLMDownloader::init_if_needed()
-{
+void LLMDownloader::init_if_needed() {
     if (initialized) return;
 
     if (!Utils::is_network_available()) {
@@ -318,15 +316,26 @@ bool LLMDownloader::is_download_resumable() const
 
 bool LLMDownloader::is_download_complete() const
 {
-    FILE* fp = fopen(download_destination.c_str(), "rb");
-    if (!fp) return false;
-
-    fseek(fp, 0, SEEK_END);
-    long size = ftell(fp);
-    fclose(fp);
-
-    return size >= real_content_length;
+    try {
+        auto file_size = std::filesystem::file_size(download_destination);
+        return static_cast<std::int64_t>(file_size) >= real_content_length;
+    } catch (const std::filesystem::filesystem_error&) {
+        return false;
+    }
 }
+
+
+// bool LLMDownloader::is_download_complete() const
+// {
+//     FILE* fp = fopen(download_destination.c_str(), "rb");
+//     if (!fp) return false;
+
+//     fseek(fp, 0, SEEK_END);
+//     long size = ftell(fp);
+//     fclose(fp);
+
+//     return size >= real_content_length;
+// }
 
 
 long long LLMDownloader::get_real_content_length() const
@@ -341,8 +350,7 @@ std::string LLMDownloader::get_download_destination() const
 }
 
 
-LLMDownloader::DownloadStatus LLMDownloader::get_download_status() const
-{
+LLMDownloader::DownloadStatus LLMDownloader::get_download_status() const {
     if (is_download_complete()) {
         return DownloadStatus::Complete;
     }
@@ -376,7 +384,9 @@ void LLMDownloader::set_download_url(const std::string& new_url) {
     initialized = false;
 
     try {
-        init_if_needed();
+        parse_headers();
+        set_download_destination();
+        initialized = true;
     } catch (const std::exception& ex) {
         // Log errors
     }

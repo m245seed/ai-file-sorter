@@ -68,6 +68,7 @@ void LLMSelectionDialog::on_llm_radio_toggled(GtkWidget *widget, gpointer data)
 
         dlg->update_file_size_label();
 
+        dlg->downloader->init_if_needed();
         status = dlg->downloader->get_download_status();
 
         // Determine button label
@@ -176,6 +177,7 @@ LLMSelectionDialog::LLMSelectionDialog(Settings& settings) :
     const char* label_text = "Download";
     bool download_complete = false;
 
+    downloader->init_if_needed();
     switch (downloader->get_download_status()) {
         case LLMDownloader::DownloadStatus::Complete:
             download_complete = true;
