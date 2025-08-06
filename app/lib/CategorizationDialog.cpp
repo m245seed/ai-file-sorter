@@ -25,7 +25,7 @@ CategorizationDialog::CategorizationDialog(DatabaseManager* db_manager, gboolean
     }
     GError *error = NULL;
     if (!gtk_builder_add_from_resource(builder, "/net/quicknode/AIFileSorter/ui/sort_confirm.glade", &error)) {
-        ui_logger->critical("Failed to load resource: %s", error->message);
+        ui_logger->critical("Failed to load resource: {}", error->message);
         g_error_free(error);
         if (builder) {
             g_object_unref(builder);
@@ -249,7 +249,6 @@ CategorizationDialog::get_categorized_files_from_treeview()
 
     if (!valid) {
         ui_logger->warn("gtk_tree_model_get_iter_first failed, model may be empty.");
-        return;
     }
 
     std::vector<std::tuple<std::string, std::string, std::string, std::string>> categorized_files;
@@ -306,12 +305,12 @@ void CategorizationDialog::on_confirm_and_sort_button_clicked()
             if (categorizedFile.move_file(show_subcategory_col)) {
                 const gchar *sorted_icon = "emblem-default";
                 gtk_list_store_set(liststore, &iter, 5, sorted_icon, -1);
-                core_logger->info("File %s moved successfully.", file_name);
+                core_logger->info("File {} moved successfully.", file_name);
             } else {
                 const gchar *sorted_icon = "process-stop";
                 gtk_list_store_set(liststore, &iter, 5, sorted_icon, -1);
                 files_not_moved.push_back(file_name);
-                core_logger->warn("File %s already exists in the destination.", file_name);
+                core_logger->warn("File {} already exists in the destination.", file_name);
             }
             valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(liststore), &iter);
             if (!valid) break;            
@@ -379,20 +378,7 @@ void CategorizationDialog::on_subcategory_cell_edited(
 
 void CategorizationDialog::record_categorization_to_db() {
     auto files = get_categorized_files_from_treeview();
-    int index = 0;
-
-    for (const auto& [file_name, file_type, category, subcategory] : files) {
-        std::string full_file_path = categorized_files[index].file_path;
-        std::string dir_path = std::filesystem::path(full_file_path).string();
-        db_manager->insert_or_update_file_with_categorization(file_name, file_type, dir_path, category, subcategory);
-        index++;
-    }
-}
-
-
-void CategorizationDialog::record_categorization_to_db() {
-    auto files = get_categorized_files_from_treeview();
-    int index = 0;
+    size_t index = 0;
 
     for (const auto& [file_name, file_type, category, subcategory] : files) {
         if (index < categorized_files.size()) {

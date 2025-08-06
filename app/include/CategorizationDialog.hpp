@@ -1,5 +1,6 @@
-#include <DatabaseManager.hpp>
+#include "DatabaseManager.hpp"
 #include <gtk/gtk.h>
+#include <spdlog/logger.h>
 
 
 class CategorizationDialog
@@ -14,9 +15,6 @@ public:
     void on_confirm_and_sort_button_clicked();
 
 private:
-    std::shared_ptr<spdlog::logger> core_logger;
-    std::shared_ptr<spdlog::logger> ui_logger;
-    std::shared_ptr<spdlog::logger> db_logger;
     GtkDialog *dialog;
     GtkButton *confirm_button;
     GtkButton *continue_button;
@@ -29,6 +27,9 @@ private:
     std::vector<CategorizedFile> categorized_files;
     GtkTreeViewColumn* subcategory_column;
     gboolean show_subcategory_col;
+    std::shared_ptr<spdlog::logger> core_logger;
+    std::shared_ptr<spdlog::logger> db_logger;
+    std::shared_ptr<spdlog::logger> ui_logger;
 
     void on_confirm_button_clicked();
     void on_continue_later_button_clicked();
