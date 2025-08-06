@@ -66,7 +66,7 @@ void Logger::setup_loggers()
     spdlog::register_logger(db_logger);
     spdlog::register_logger(ui_logger);
 
-    spdlog::set_level(spdlog::level::warn);
+    spdlog::set_level(spdlog::level::debug);
     spdlog::info("Loggers initialized.");
 }
 
