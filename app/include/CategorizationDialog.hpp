@@ -14,6 +14,9 @@ public:
     void on_confirm_and_sort_button_clicked();
 
 private:
+    std::shared_ptr<spdlog::logger> core_logger;
+    std::shared_ptr<spdlog::logger> ui_logger;
+    std::shared_ptr<spdlog::logger> db_logger;
     GtkDialog *dialog;
     GtkButton *confirm_button;
     GtkButton *continue_button;

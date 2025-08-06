@@ -9,19 +9,23 @@
 #include <MovableCategorizedFile.hpp>
 #include <DatabaseManager.hpp>
 #include <Types.hpp>
+#include <Logger.hpp>
 
 
 CategorizationDialog::CategorizationDialog(DatabaseManager* db_manager, gboolean show_subcategory_col)
-    : db_manager(db_manager), show_subcategory_col(show_subcategory_col)
+    : db_manager(db_manager), show_subcategory_col(show_subcategory_col),
+      core_logger(Logger::get_logger("core_logger")),
+      db_logger(Logger::get_logger("db_logger")),
+      ui_logger(Logger::get_logger("ui_logger"))
 {
     builder = gtk_builder_new();
     if (!builder) {
-        g_critical("Failed to initialize GtkBuilder.");
+        ui_logger->critical("Failed to initialize GtkBuilder.");
         return;
     }
     GError *error = NULL;
     if (!gtk_builder_add_from_resource(builder, "/net/quicknode/AIFileSorter/ui/sort_confirm.glade", &error)) {
-        g_critical("Failed to load resource: %s", error->message);
+        ui_logger->critical("Failed to load resource: %s", error->message);
         g_error_free(error);
         if (builder) {
             g_object_unref(builder);
@@ -32,9 +36,9 @@ CategorizationDialog::CategorizationDialog(DatabaseManager* db_manager, gboolean
 
     dialog = GTK_DIALOG(gtk_builder_get_object(builder, "categorization_dialog"));
     if (!dialog) {
-        g_critical("Dialog widget 'categorization_dialog' not found in builder.");
+        ui_logger->critical("Dialog widget 'categorization_dialog' not found in builder.");
     } else if (!GTK_IS_DIALOG(dialog)) {
-        g_warning("'categorization_dialog' is not a valid GtkDialog.");
+        ui_logger->warn("'categorization_dialog' is not a valid GtkDialog.");
     }
 
     gtk_window_set_default_size(GTK_WINDOW(dialog), 1200, 1000);
@@ -46,7 +50,7 @@ CategorizationDialog::CategorizationDialog(DatabaseManager* db_manager, gboolean
     }
 
     if (!GTK_IS_CONTAINER(treeview)) {
-        g_print("Tree view is not a valid container.\n");
+        ui_logger->error("Tree view is not a valid container.");
     }
 
     // Set up the list store with columns (File Name, File Type, Icon, Category, Subcategory, Sorted Status Icon)
@@ -66,7 +70,7 @@ CategorizationDialog::CategorizationDialog(DatabaseManager* db_manager, gboolean
     continue_button = GTK_BUTTON(gtk_builder_get_object(builder, "continue_button"));
 
     if (!confirm_button || !continue_button) {
-        g_error("Failed to load dialog buttons from builder");
+        ui_logger->error("Failed to load dialog buttons from builder");
         return;
     }
 
@@ -84,6 +88,8 @@ CategorizationDialog::CategorizationDialog(DatabaseManager* db_manager, gboolean
         CategorizationDialog *dlg = static_cast<CategorizationDialog*>(user_data);
         return dlg->on_dialog_close(widget, event, user_data);
     }), this);
+
+    ui_logger->info("CategorizationDialog created. show_subcategory_col={}", show_subcategory_col);
 }
 
 
@@ -207,6 +213,8 @@ void CategorizationDialog::show_results(
 
     gtk_list_store_clear(liststore);
 
+    ui_logger->info("Displaying {} categorized files in treeview", categorized_files.size());
+
     for (const auto& file : categorized_files) {
         GtkTreeIter iter;
         gtk_list_store_append(liststore, &iter);
@@ -238,6 +246,12 @@ CategorizationDialog::get_categorized_files_from_treeview()
     GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(treeview));
     GtkTreeIter iter;
     gboolean valid = gtk_tree_model_get_iter_first(model, &iter);
+
+    if (!valid) {
+        ui_logger->warn("gtk_tree_model_get_iter_first failed, model may be empty.");
+        return;
+    }
+
     std::vector<std::tuple<std::string, std::string, std::string, std::string>> categorized_files;
 
     while (valid) {
@@ -268,6 +282,8 @@ CategorizationDialog::get_categorized_files_from_treeview()
 
 void CategorizationDialog::on_confirm_and_sort_button_clicked()
 {
+    ui_logger->info("Confirm and Sort clicked.");
+
     record_categorization_to_db();
 
     auto files = get_categorized_files_from_treeview();
@@ -278,39 +294,39 @@ void CategorizationDialog::on_confirm_and_sort_button_clicked()
 
         GtkTreeIter iter;
         gboolean valid = gtk_tree_model_get_iter_first(GTK_TREE_MODEL(liststore), &iter);
-        for (const auto& [file_name, file_type, category, subcategory] : files) {
-            // g_print("Processing file: %s\n", file_name.c_str());
 
+        ui_logger->info("Files in treeview: {}, categorized_files: {}", files.size(), categorized_files.size());
+        for (const auto& [file_name, file_type, category, subcategory] : files) {
+            ui_logger->info("Processing: file={}, type={}, category={}, subcategory={}",
+                file_name, file_type, category, subcategory);
+            
             MovableCategorizedFile categorizedFile(dir_path, category, subcategory, file_name, file_type);
 
             categorizedFile.create_cat_dirs(show_subcategory_col);
             if (categorizedFile.move_file(show_subcategory_col)) {
                 const gchar *sorted_icon = "emblem-default";
                 gtk_list_store_set(liststore, &iter, 5, sorted_icon, -1);
-                g_print("File %s moved successfully.\n", file_name.c_str());
+                core_logger->info("File %s moved successfully.", file_name);
             } else {
                 const gchar *sorted_icon = "process-stop";
                 gtk_list_store_set(liststore, &iter, 5, sorted_icon, -1);
                 files_not_moved.push_back(file_name);
-                g_print("File %s already exists in the destination.\n", file_name.c_str());
+                core_logger->warn("File %s already exists in the destination.", file_name);
             }
             valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(liststore), &iter);
-            if (!valid) break;
+            if (!valid) break;            
         }
     } else {
-        g_print("Error: categorized_files is empty.\n");
+        core_logger->error("Error: categorized_files is empty.");
         return;
     }
 
-    // g_print("Finished file move operations\n");
+    core_logger->info("Finished file move operations");
 
     if (files_not_moved.empty()) {
-        // g_print("All files have been sorted and moved successfully.\n");
+        core_logger->info("All files have been sorted and moved successfully.");
     } else {
-        // g_print("The following files have not been moved because they already exist at the destination:\n");
-        // for (const auto& file_name : files_not_moved) {
-        //     g_print("%s\n", file_name.c_str());
-        // }
+        ui_logger->info("Categorization complete. Unmoved files: {}", files_not_moved.size());
     }
 
     show_close_button();
@@ -361,8 +377,7 @@ void CategorizationDialog::on_subcategory_cell_edited(
 }
 
 
-void CategorizationDialog::record_categorization_to_db()
-{
+void CategorizationDialog::record_categorization_to_db() {
     auto files = get_categorized_files_from_treeview();
     int index = 0;
 
@@ -371,5 +386,23 @@ void CategorizationDialog::record_categorization_to_db()
         std::string dir_path = std::filesystem::path(full_file_path).string();
         db_manager->insert_or_update_file_with_categorization(file_name, file_type, dir_path, category, subcategory);
         index++;
+    }
+}
+
+
+void CategorizationDialog::record_categorization_to_db() {
+    auto files = get_categorized_files_from_treeview();
+    int index = 0;
+
+    for (const auto& [file_name, file_type, category, subcategory] : files) {
+        if (index < categorized_files.size()) {
+            std::string full_file_path = categorized_files[index].file_path;
+            std::string dir_path = std::filesystem::path(full_file_path).string();
+            db_manager->insert_or_update_file_with_categorization(file_name, file_type, dir_path, category, subcategory);
+            index++;
+        } else {
+            ui_logger->warn("Mismatch between treeview files and categorized_files at index {}", index);
+            break;
+        }
     }
 }
