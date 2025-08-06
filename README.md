@@ -13,8 +13,8 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 
 - [AI File Sorter](#ai-file-sorter)
   - [Changelog](#changelog)
-    - [\[0.9.2\] - 2025-08-06](#090---2025-08-06)
-    - [\[0.9.1\] - 2025-08-01](#090---2025-08-01)
+    - [\[0.9.2\] - 2025-08-06](#092---2025-08-06)
+    - [\[0.9.1\] - 2025-08-01](#091---2025-08-01)
     - [\[0.9.0\] - 2025-07-18](#090---2025-07-18)
   - [Features](#features)
   - [Requirements](#requirements)
