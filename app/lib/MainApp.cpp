@@ -373,15 +373,15 @@ void MainApp::perform_analysis()
 std::vector<FileEntry>
 MainApp::get_actual_files(const std::string& directory_path)
 {
-    core_logger->info("Getting actual files from directory %s", directory_path.c_str());
+    core_logger->info("Getting actual files from directory {}", directory_path);
 
     std::vector<FileEntry> actual_files =
         dirscanner.get_directory_entries(directory_path, FileScanOptions::Files | FileScanOptions::Directories);
     
-    core_logger->info("Actual files found: %d\n", static_cast<int>(actual_files.size()));
+    core_logger->info("Actual files found: {}", static_cast<int>(actual_files.size()));
 
     for (const auto& [full_file_path, file_name, file_type] : actual_files) {
-        core_logger->info("File: %s, Path: %s\n", file_name.c_str(), full_file_path.c_str());
+        core_logger->info("File: {}, Path: {}", file_name, full_file_path);
     }
 
     return actual_files;
@@ -428,7 +428,7 @@ void MainApp::on_analyze_button_clicked(GtkButton *button, gpointer main_app_ins
         try {
             app->perform_analysis();
         } catch (const std::exception &ex) {
-            app->core_logger->error("Exception during analysis: %s\n", ex.what());
+            app->core_logger->error("Exception during analysis: {}", ex.what());
         }
     });
 }
@@ -507,80 +507,6 @@ std::tuple<std::string, std::string> split_category_subcategory(const std::strin
 }
 
 
-// std::vector<CategorizedFile>
-// MainApp::categorize_files(const std::vector<FileEntry>& items) {
-//     std::unique_ptr<ILLMClient> llm;
-
-//     if (settings.get_llm_choice() == LLMChoice::Remote) {
-//         CategorizationSession categorization_session;
-//         llm = std::make_unique<LLMClient>(
-//             categorization_session.create_llm_client());
-//     } else if (settings.get_llm_choice() == LLMChoice::Local_3b) {
-//         std::string url = std::getenv("LOCAL_LLM_3B_DOWNLOAD_URL");
-//         llm = std::make_unique<LocalLLMClient>(
-//             Utils::make_default_path_to_file_from_download_url(url));
-//     } else {
-//         std::string url = std::getenv("LOCAL_LLM_7B_DOWNLOAD_URL");
-//         llm = std::make_unique<LocalLLMClient>(
-//             Utils::make_default_path_to_file_from_download_url(url));
-//     }
-
-//     std::vector<CategorizedFile> categorized_items;
-
-//     for (const auto &[full_path, name, type] : items) {
-//         if (stop_analysis) {
-//             core_logger->info("Stopping categorization at user request...\n");
-//             return categorized_items;
-//         }
-
-//         try {
-//             const std::string& dir_path = std::filesystem::path(full_path)
-//                 .parent_path().string();
-
-//             auto report_progress = [this](const std::string& message) {
-//                 auto progress_data = std::make_unique<std::pair<MainApp*,
-//                     std::string>>(this, message);
-
-//                 g_idle_add([](gpointer user_data) -> gboolean {
-//                     auto progress_data = std::unique_ptr<std::pair<MainApp*,
-//                         std::string>>(
-//                             static_cast<std::pair<MainApp*,
-//                             std::string>*>(user_data));
-
-//                     if (progress_data->first->progress_dialog) {
-//                         progress_data->first->progress_dialog->append_text(
-//                             progress_data->second + "\n");
-//                     }
-
-//                     return G_SOURCE_REMOVE;
-//                 }, progress_data.release());
-//             };
-
-//             auto [category, subcategory] = categorize_file(
-//                                             *llm, name, type, report_progress);
-
-//             categorized_items.emplace_back(CategorizedFile{
-//                                                 dir_path,
-//                                                 name,
-//                                                 type,
-//                                                 category,
-//                                                 subcategory
-//                                             });
-
-//         } catch (const std::exception& ex) {
-//             std::string error_message = "Error categorizing file \"" +
-//                 name + "\": " + ex.what();
-//             DialogUtils::show_error_dialog(GTK_WINDOW(this->main_window),
-//                                            error_message);
-//             core_logger->error("%s\n", error_message.c_str());
-//             break;
-//         }
-//     }
-
-//     return categorized_items;
-// }
-
-
 void MainApp::report_progress(const std::string& message) {
     auto progress_data = std::make_unique<
         std::pair<MainApp*, std::string>>(this, message);
@@ -636,7 +562,7 @@ std::optional<CategorizedFile> MainApp::categorize_single_file(
             entry.file_name + "\": " + ex.what();
         DialogUtils::show_error_dialog(GTK_WINDOW(
             this->main_window), error_message);
-        core_logger->error("%s\n", error_message.c_str());
+        core_logger->error("{}", error_message);
         return std::nullopt;
     }
 }
@@ -696,7 +622,7 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
     if (categorization.size() >= 2) {
         std::string category = categorization[0];
         std::string subcategory = categorization[1];
-        core_logger->info("Found in local DB: %s - Category: %s, Subcategory: %s\n", item_name.c_str(), category.c_str(), subcategory.c_str());
+        core_logger->info("Found in local DB: {} - Category: {}, Subcategory: {}", item_name, category, subcategory);
         std::string message = 
             "\nFound in local DB: " + item_name + " [" + category + "/" + subcategory + "]";
         report_progress(message);
@@ -764,7 +690,7 @@ void MainApp::show_results_dialog(const std::vector<CategorizedFile>& results)
         categorization_dialog = new CategorizationDialog(&db_manager, show_subcategory_col);
         this->categorization_dialog->show_results(results);
     } catch (const std::runtime_error &ex) {
-        ui_logger->error("Error: %s\n", ex.what());;
+        ui_logger->error("Error: {}", ex.what());;
     }
 }
 
@@ -876,7 +802,7 @@ void MainApp::on_activate()
         initialize_ui_components();
         start_updater();
     } catch (const std::exception &e) {
-        ui_logger->critical("Exception in MainApp::on_activate: %s", e.what());
+        ui_logger->critical("Exception in MainApp::on_activate: {}", e.what());
     }
 }
 
@@ -890,7 +816,7 @@ void MainApp::initialize_builder()
     }
     GError *error = NULL;
     if (!gtk_builder_add_from_resource(builder, "/net/quicknode/AIFileSorter/ui/main_window.glade", &error)) {
-        ui_logger->critical("Failed to load resource: %s", error->message);
+        ui_logger->critical("Failed to load resource: {}", error->message);
         g_error_free(error);
         g_object_unref(builder);
         throw std::runtime_error("Resource loading failed.");
@@ -936,7 +862,7 @@ void MainApp::set_app_icon()
     GdkPixbuf *pixbuf_icon = gdk_pixbuf_new_from_resource("/net/quicknode/AIFileSorter/images/app_icon_128.png", &error);
     
     if (!pixbuf_icon) {
-        ui_logger->critical("Failed to load the app icon resource: %s", error->message);
+        ui_logger->critical("Failed to load the app icon resource: {}", error->message);
         g_clear_error(&error);
     } else {
         gtk_window_set_icon(GTK_WINDOW(main_window), pixbuf_icon);
@@ -944,7 +870,7 @@ void MainApp::set_app_icon()
         // Debugging: Check the reference count before unref
         g_object_ref(pixbuf_icon);  // Increase ref count to check
         gsize ref_count = G_OBJECT(pixbuf_icon)->ref_count;
-        ui_logger->debug("Pixbuf ref count before unref: %zu", ref_count);
+        ui_logger->debug("Pixbuf ref count before unref: {}", ref_count);
 
         g_object_unref(pixbuf_icon);
     }
