@@ -163,6 +163,8 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
   
         vcpkg install
 
+    The needed packages for building `llama.cpp` will be compiled and installed.
+
 8. In `Developer PowerShell for VS 2022`, run
 
     **If you have CUDA**:
