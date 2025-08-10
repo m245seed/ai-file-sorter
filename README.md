@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD046 -->
 # AI File Sorter
 
-[![Version](https://badgen.net/badge/version/0.9.2/green)](#) [![Donate via PayPal](https://badgen.net/badge/donate/PayPal/blue)](https://paypal.me/aifilesorter)
+[![Version](https://badgen.net/badge/version/0.9.1/green)](#) [![Donate via PayPal](https://badgen.net/badge/donate/PayPal/blue)](https://paypal.me/aifilesorter)
 
 AI File Sorter is a powerful, cross-platform desktop application that automates file organization. Featuring AI integration and a user-friendly GTK-based interface, it categorizes and sorts files and folders based on their names and extensions. The app intelligently assigns categories and, optionally, subcategories, which you can review and edit before confirming. Once approved, the necessary folders are created, and your files are sorted accordingly. The app uses local (LLaMa, Mistral) and remote (ChatGPT 4o-mini) LLMs for this task, depending on your choice.
 
@@ -13,8 +13,7 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 
 - [AI File Sorter](#ai-file-sorter)
   - [Changelog](#changelog)
-    - [\[0.9.2\] - 2025-08-06](#092---2025-08-06)
-    - [\[0.9.1\] - 2025-08-01](#091---2025-08-01)
+    - [\[0.9.1\] - 2025-08-01](#090---2025-08-01)
     - [\[0.9.0\] - 2025-07-18](#090---2025-07-18)
   - [Features](#features)
   - [Requirements](#requirements)
@@ -56,10 +55,6 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 ---
 
 ## Changelog
-
-### [0.9.2] - 2025-08-06
-  - Bug fixes.
-  - Increased code coverage with logging.
 
 ### [0.9.1] - 2025-08-01
   - Bug fixes.
@@ -138,7 +133,7 @@ You can also now launch `Git Bash` from Start Menu.
 3. Install dependencies:
    
 ```bash
-pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkmm3 mingw-w64-x86_64-jsoncpp mingw-w64-x86_64-pcre mingw-w64-x86_64-libidn2 mingw-w64-x86_64-libssh mingw-w64-x86_64-libpsl mingw-w64-x86_64-openldap mingw-w64-x86_64-gnutls mingw-w64-x86_64-lz4 mingw-w64-x86_64-libgcrypt mingw-w64-x86_64-fmt mingw-w64-x86_64-spdlog mingw-w64-x86_64-openblas pacman -S mingw-w64-x86_64-curl make
+pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkmm3 mingw-w64-x86_64-jsoncpp mingw-w64-x86_64-pcre mingw-w64-x86_64-libidn2 mingw-w64-x86_64-libssh mingw-w64-x86_64-libpsl mingw-w64-x86_64-openldap mingw-w64-x86_64-gnutls mingw-w64-x86_64-lz4 mingw-w64-x86_64-libgcrypt mingw-w64-x86_64-fmt mingw-w64-x86_64-spdlog mingw-w64-x86_64-curl make
 ```
 
 4. Install [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/).
@@ -146,9 +141,7 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
 
 5. **Optional**: If you want to compile AI File Sorter with CUDA (for Nvidia GPUs only) then download and install [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads). CUDA significantly increases the compute speed of local LLMs. Otherwise, AI File Sorter will fall back on either OpenCL or OpenBLAS (CPU only, but faster than without it).
 
-6. Install [Python](https://www.python.org/downloads/).
-
-7. Launch `Developer PowerShell for VS 2022` and `cd path\to\cloned\github\repo\app\scripts` (e.g., `cd C:\Users\username\repos\ai-file-sorter\app\scripts`). Check that the script `build_llama.windows.ps1` contains the paths in accordance with your versions of CUDA and Visual Studio tools. In particular, check the version numbers in these lines:
+6. Launch `Developer PowerShell for VS 2022` and `cd path\to\cloned\github\repo\app\scripts` (e.g., `cd C:\Users\username\repos\ai-file-sorter\app\scripts`). Check that the script `build_llama.windows.ps1` contains the paths in accordance with your versions of CUDA and Visual Studio tools. In particular, check the version numbers in these lines:
 
     ```
     $cudaRoot = "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9"
@@ -158,15 +151,15 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
 
     Save any changes.
 
-8. In `Developer PowerShell for VS 2022`, run
+7. In `Developer PowerShell for VS 2022`, run
 
     **If you have CUDA**:
 
-      powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=on
+        powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=on
 
     **If you don't have CUDA**:
 
-      powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=off
+        powershell -ExecutionPolicy Bypass -File .\build_llama_windows.ps1 cuda=off
 
 9. **Optional** (not needed if you want to use only local LLMs for file sorting). Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here.
 
