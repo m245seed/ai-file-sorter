@@ -63,6 +63,9 @@ reset_key_4_github.sh
 !.vscode/extensions.json
 !.vscode/*.code-snippets
 
+### Visual Studio
+vcpkg_installed/
+
 # Local History for Visual Studio Code
 .history/
 
