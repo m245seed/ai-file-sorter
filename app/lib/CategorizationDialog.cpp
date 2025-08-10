@@ -305,7 +305,6 @@ void CategorizationDialog::on_confirm_and_sort_button_clicked()
             if (categorizedFile.move_file(show_subcategory_col)) {
                 const gchar *sorted_icon = "emblem-default";
                 gtk_list_store_set(liststore, &iter, 5, sorted_icon, -1);
-                core_logger->info("File {} moved successfully.", file_name);
             } else {
                 const gchar *sorted_icon = "process-stop";
                 gtk_list_store_set(liststore, &iter, 5, sorted_icon, -1);
@@ -315,6 +314,7 @@ void CategorizationDialog::on_confirm_and_sort_button_clicked()
             valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(liststore), &iter);
             if (!valid) break;            
         }
+        core_logger->info("All files moved successfully.");
     } else {
         core_logger->error("Error: categorized_files is empty.");
         return;
