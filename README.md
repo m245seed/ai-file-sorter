@@ -159,7 +159,11 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
 
     Save any changes.
 
-7. In `Developer PowerShell for VS 2022`, run
+7. In the same directory as in 6, run
+  
+        vcpkg install
+
+8. In `Developer PowerShell for VS 2022`, run
 
     **If you have CUDA**:
 
