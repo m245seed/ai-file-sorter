@@ -141,7 +141,7 @@ You can also now launch `Git Bash` from Start Menu.
 3. Install dependencies:
    
 ```bash
-pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkmm3 mingw-w64-x86_64-jsoncpp mingw-w64-x86_64-pcre mingw-w64-x86_64-libidn2 mingw-w64-x86_64-libssh mingw-w64-x86_64-libpsl mingw-w64-x86_64-openldap mingw-w64-x86_64-gnutls mingw-w64-x86_64-lz4 mingw-w64-x86_64-libgcrypt mingw-w64-x86_64-fmt mingw-w64-x86_64-spdlog mingw-w64-x86_64-curl make
+pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkmm3 mingw-w64-x86_64-jsoncpp mingw-w64-x86_64-pcre mingw-w64-x86_64-libidn2 mingw-w64-x86_64-libssh mingw-w64-x86_64-libpsl mingw-w64-x86_64-openldap mingw-w64-x86_64-gnutls mingw-w64-x86_64-lz4 mingw-w64-x86_64-libgcrypt mingw-w64-x86_64-fmt mingw-w64-x86_64-spdlog mingw-w64-x86_64-curl mingw-w64-x86_64-openblas make
 ```
 
 4. Install [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/).
@@ -159,13 +159,7 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
 
     Save any changes.
 
-7. In the same directory as in 6, run
-  
-        vcpkg install
-
-    The needed packages for building `llama.cpp` will be compiled and installed.
-
-8. In `Developer PowerShell for VS 2022`, run
+7. In `Developer PowerShell for VS 2022`, run
 
     **If you have CUDA**:
 
@@ -177,11 +171,11 @@ pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkm
 
     `llama.cpp` will be built from source.
 
-9. **Optional** (not needed if you want to use only local LLMs for file sorting). Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here.
+8. **Optional** (not needed if you want to use only local LLMs for file sorting). Go to [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption) and complete all steps there before proceeding to step 6 here.
 
-10. Go back the `MSYS2 MINGW64` shell (ensure you ran it *as Administrator*, otherwise `make install` won't work). Go to the cloned repo's `app/resources` path (e.g., `/c/Users/username/repos/ai-file-sorter/app/resources`) and run `bash compile-resources.sh`. Go to the `app` directory (`cd ..`).
+9. Go back the `MSYS2 MINGW64` shell (ensure you ran it *as Administrator*, otherwise `make install` won't work). Go to the cloned repo's `app/resources` path (e.g., `/c/Users/username/repos/ai-file-sorter/app/resources`) and run `bash compile-resources.sh`. Go to the `app` directory (`cd ..`).
 
-11. Run `make`, `make install` and `make clean`. The executable `AiFileSorter.exe` will be located in `C:\Program Files\AiFileSorter`. You can add the directory to `%PATH%`.
+10. Run `make`, `make install` and `make clean`. The executable `AiFileSorter.exe` will be located in `C:\Program Files\AiFileSorter`. You can add the directory to `%PATH%`.
 
 To uninstall, launch `MSYS2 MINGW64` (**NOT** `MSYS2 MSYS`) *as Administrator*, go to the same directory (`ai-file-sorter/app`) and issue the command `make uninstall`.
 

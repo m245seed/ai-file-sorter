@@ -1,15 +1,16 @@
 $ErrorActionPreference = "Stop"
 
-# Parse optional argument (cuda=on or cuda=off)
+# --- Parse optional argument (cuda=on or cuda=off) ---
 $useCuda = "OFF"
 foreach ($arg in $args) {
     if ($arg -match "^cuda=(on|off)$") {
-        $useCuda = ($Matches[1].ToUpper())
+        $useCuda = $Matches[1].ToUpper()
     }
 }
 
 Write-Host "`nCUDA Support: $useCuda`n"
 
+# --- Paths ---
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $llamaDir = Join-Path $scriptDir "..\include\external\llama.cpp"
 
@@ -22,6 +23,7 @@ if (-not (Test-Path $llamaDir)) {
 $precompiledLibsDir = Join-Path $scriptDir "..\lib\precompiled"
 $headersDir = Join-Path $scriptDir "..\include\llama"
 
+# --- Build from llama.cpp ---
 Push-Location $llamaDir
 
 if (Test-Path "build") {
@@ -29,55 +31,49 @@ if (Test-Path "build") {
 }
 New-Item -ItemType Directory -Path "build" | Out-Null
 
-# Base CMake options
+# --- Common CMake options ---
 $cmakeArgs = @(
-    "-S", ".", "-B", "build",
     "-DCMAKE_C_COMPILER=`"C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe`"",
     "-DCMAKE_CXX_COMPILER=`"C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe`"",
+    "-DCURL_LIBRARY=`"C:/msys64/mingw64/lib/libcurl.dll.a`"",
+    "-DCURL_INCLUDE_DIR=`"C:/msys64/mingw64/include`"",
     "-DBUILD_SHARED_LIBS=ON",
-    "-DGGML_CUDA=$useCuda",
-    "-DGGML_BLAS=OFF",
+    "-DGGML_BLAS=ON",
     "-DGGML_BLAS_VENDOR=OpenBLAS",
+    "-DBLAS_LIBRARIES=`"C:/msys64/mingw64/lib/libopenblas.dll.a`"",
+    "-DBLAS_INCLUDE_DIRS=`"C:/msys64/mingw64/include/openblas/`"",
     "-DGGML_OPENCL=OFF",
     "-DGGML_VULKAN=OFF",
     "-DGGML_SYCL=OFF",
     "-DGGML_HIP=OFF",
-    "-DGGML_KLEIDIAI=OFF"
+    "-DGGML_KLEIDIAI=OFF",
+    "-DGGML_NATIVE=OFF",           # Avoid CPU-specific build
+    "-DCMAKE_C_FLAGS=/arch:AVX2",  # Intel & AMD safe AVX2 baseline
+    "-DCMAKE_CXX_FLAGS=/arch:AVX2"
 )
 
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$curlInclude = Join-Path $scriptDir "vcpkg_installed\x64-windows\include"
-$curlLib = Join-Path $scriptDir "vcpkg_installed\x64-windows\lib\libcurl.lib"
-
-$openBlasInclude = Join-Path $scriptDir "vcpkg_installed\x64-windows\include\openblas"
-$openBlasLib = Join-Path $scriptDir "vcpkg_installed\x64-windows\lib\openblas.lib"
-
-$cmakeArgs += "-DBLAS_INCLUDE_DIRS=`"$openBlasInclude`""
-$cmakeArgs += "-DBLAS_LIBRARIES=`"$openBlasLib`""
-
-$cmakeArgs += "-DCURL_INCLUDE_DIR=`"$curlInclude`""
-$cmakeArgs += "-DCURL_LIBRARY=`"$curlLib`""
-
-$pkgconfExe = Join-Path $scriptDir "vcpkg_installed\x64-windows\tools\pkgconf\pkgconf.exe"
-$cmakeArgs += "-DPKG_CONFIG_EXECUTABLE=`"$pkgconfExe`""
-
-# Only add CUDA paths if enabled
+# --- Add CUDA options only if enabled ---
 if ($useCuda -eq "ON") {
     $cudaRoot = "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9"
     $includeDir = "$cudaRoot/include"
     $libDir = "$cudaRoot/lib/x64/cudart.lib"
-    $cmakeArgs += "-DCUDA_TOOLKIT_ROOT_DIR=`"$cudaRoot`""
-    $cmakeArgs += "-DCUDA_INCLUDE_DIRS=`"$includeDir`""
-    $cmakeArgs += "-DCUDA_CUDART=`"$libDir`""
+
+    $cmakeArgs += @(
+        "-DGGML_CUDA=ON",
+        "-DCUDA_TOOLKIT_ROOT_DIR=`"$cudaRoot`"",
+        "-DCUDA_INCLUDE_DIRS=`"$includeDir`"",
+        "-DCUDA_CUDART=`"$libDir`""
+    )
+} else {
+    $cmakeArgs += "-DGGML_CUDA=OFF"
 }
 
-& cmake @cmakeArgs
-
+& cmake -S . -B build @cmakeArgs
 cmake --build build --config Release -- /m
 
 Pop-Location
 
-# Clean and repopulate precompiled DLLs
+# --- Clean and repopulate precompiled DLLs ---
 if (Test-Path $precompiledLibsDir) {
     Remove-Item -Recurse -Force $precompiledLibsDir
 }
@@ -87,7 +83,7 @@ $releaseBin = Join-Path $llamaDir "build\bin\Release"
 Get-ChildItem "$releaseBin\ggml*.dll" -ErrorAction SilentlyContinue | Copy-Item -Destination $precompiledLibsDir
 Copy-Item "$releaseBin\llama.dll" -Destination $precompiledLibsDir -ErrorAction SilentlyContinue
 
-# Copy headers
+# --- Copy headers ---
 New-Item -ItemType Directory -Force -Path $headersDir | Out-Null
 Copy-Item "$llamaDir\include\llama.h" -Destination $headersDir
 Copy-Item "$llamaDir\ggml\src\*.h" -Destination $headersDir -ErrorAction SilentlyContinue
