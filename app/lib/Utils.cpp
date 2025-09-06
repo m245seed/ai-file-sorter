@@ -110,7 +110,8 @@ bool Utils::is_valid_directory(const char *path)
 std::vector<unsigned char> Utils::hex_to_vector(const std::string& hex) {
     std::vector<unsigned char> data;
     for (size_t i = 0; i < hex.length(); i += 2) {
-        unsigned char byte = static_cast<unsigned char>(std::stoi(hex.substr(i, 2), nullptr, 16));
+        unsigned char byte = static_cast<unsigned char>(
+            std::stoi(hex.substr(i, 2), nullptr, 16));
         data.push_back(byte);
     }
     return data;
@@ -166,7 +167,8 @@ std::string Utils::format_size(curl_off_t bytes)
 {
     char buffer[64];
     if (bytes >= (1LL << 30))
-        snprintf(buffer, sizeof(buffer), "%.2f GB", bytes / (double)(1LL << 30));
+        snprintf(buffer, sizeof(buffer), "%.2f GB",
+                 bytes / (double)(1LL << 30));
     else if (bytes >= (1LL << 20))
         snprintf(buffer, sizeof(buffer), "%.2f MB", bytes / (double)(1LL << 20));
     else if (bytes >= (1LL << 10))
