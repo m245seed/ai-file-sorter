@@ -14,7 +14,7 @@ ifeq ($(UNAME), Linux)
     INSTALL_LIB_DIR := /usr/local/lib/aifilesorter
 	LD_CONF_FILE := /etc/ld.so.conf.d/aifilesorter.conf
 
-	LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lggml -pthread
+	LDFLAGS += -lcurl -ljsoncpp -lsqlite3 -lcrypto -lfmt -lspdlog -lssl -lllama -lggml -lX11 -pthread
 	LDFLAGS += -Wl,-rpath,'$$ORIGIN/../lib/precompiled'
 	LDFLAGS += -Wl,-rpath-link=./lib/precompiled
 

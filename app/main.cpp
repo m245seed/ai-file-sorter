@@ -8,6 +8,11 @@
 #include <libintl.h>
 #include <iostream>
 #include <curl/curl.h>
+
+#ifdef __linux__
+        #include <X11/Xlib.h>
+#endif
+
 extern GResource *resources_get_resource();
 
 
@@ -31,6 +36,10 @@ int main(int argc, char **argv) {
 
     #ifdef _WIN32
         _putenv("GSETTINGS_SCHEMA_DIR=schemas");
+    #endif
+
+    #ifdef __linux__
+        XInitThreads();
     #endif
 
     try {
