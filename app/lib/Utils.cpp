@@ -392,13 +392,12 @@ std::string Utils::get_cudart_dll_name() {
     int version = get_installed_cuda_runtime_version();
     if (version == 0) return "";
 
-    int major = version / 1000;        // e.g., 12
-    // int minor = (version % 1000) / 10; // e.g., 8
+    int major = version / 1000;        // e.g., 13
 
     char buffer[32];
     std::snprintf(buffer, sizeof(buffer), "cudart64_%d.dll", major);
     std::cerr << "[CUDA] Determined DLL name: " << buffer << std::endl;
-    return buffer; // e.g., "cudart64_12.dll"
+    return buffer; // e.g., "cudart64_13.dll"
 }
 #endif
 
