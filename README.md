@@ -13,9 +13,9 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 
 - [AI File Sorter](#ai-file-sorter)
   - [Changelog](#changelog)
-    - [\[0.9.2\] - 2025-08-06](#092---2025-08-06)
-    - [\[0.9.1\] - 2025-08-01](#091---2025-08-01)
-    - [\[0.9.0\] - 2025-07-18](#090---2025-07-18)
+    - [[0.9.2] - 2025-08-06](#092---2025-08-06)
+    - [[0.9.1] - 2025-08-01](#091---2025-08-01)
+    - [[0.9.0] - 2025-07-18](#090---2025-07-18)
   - [Features](#features)
   - [Requirements](#requirements)
   - [Installation](#installation)
@@ -25,25 +25,25 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
         - [Navigate into the directory](#navigate-into-the-directory)
       - [Compile the app](#compile-the-app)
     - [MacOS](#macos)
-        - [Clone the repository](#clone-the-repository-1)
-        - [Navigate into the directory](#navigate-into-the-directory-1)
+      - [Clone the repository](#clone-the-repository-1)
+      - [Navigate into the directory](#navigate-into-the-directory-1)
       - [Compile the app](#compile-the-app-1)
   - [Uninstallation](#uninstallation)
     - [Linux](#linux)
-        - [Clone the repository](#clone-the-repository-2)
-        - [Navigate into the directory](#navigate-into-the-directory-2)
+      - [Clone the repository](#clone-the-repository-2)
+      - [Navigate into the directory](#navigate-into-the-directory-2)
       - [Compile the app](#compile-the-app-2)
-      - [1. Install the dependencies](#1-install-the-dependencies)
-        - [Debian / Ubuntu](#debian--ubuntu)
-        - [Fedora / RedHat](#fedora--redhat)
-        - [Arch / Manjaro](#arch--manjaro)
-      - [2. Compile `llama.cpp`](#2-compile-llamacpp)
-        - [Debian / Ubuntu](#debian--ubuntu-1)
-        - [Fedora / RedHat](#fedora--redhat-1)
-        - [Arch / Manjaro](#arch--manjaro-1)
-        - [All Linux](#all-linux)
-      - [3. \[Optional\] Get API key](#3-optional-get-api-key)
-      - [4. Compile and install AI File Sorter](#4-compile-and-install-ai-file-sorter)
+        - [1. Install the dependencies](#1-install-the-dependencies)
+          - [Debian / Ubuntu](#debian--ubuntu)
+          - [Fedora / RedHat](#fedora--redhat)
+          - [Arch / Manjaro](#arch--manjaro)
+        - [2. Compile `llama.cpp`](#2-compile-llamacpp)
+          - [Debian / Ubuntu](#debian--ubuntu-1)
+          - [Fedora / RedHat](#fedora--redhat-1)
+          - [Arch / Manjaro](#arch--manjaro-1)
+          - [All Linux](#all-linux)
+        - [3. [Optional] Get API key](#3-optional-get-api-key)
+        - [4. Compile and install AI File Sorter](#4-compile-and-install-ai-file-sorter)
   - [API Key, Obfuscation, and Encryption](#api-key-obfuscation-and-encryption)
   - [Uninstallation](#uninstallation-1)
   - [How to Use](#how-to-use)
@@ -59,21 +59,21 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 
 ### [0.9.2] - 2025-08-06
 
-  - Bug fixes.
-  - Increased code coverage with logging.
+- Bug fixes.
+- Increased code coverage with logging.
 
 ### [0.9.1] - 2025-08-01
 
-  - Bug fixes.
-  - Minor improvements for stability.
-  - OpenCL is now not supported by default in the build script for llama.cpp.
+- Bug fixes.
+- Minor improvements for stability.
+- OpenCL is now not supported by default in the build script for llama.cpp.
 
 ### [0.9.0] - 2025-07-18
 
-  - Local LLM support with `llama.cpp`.
-  - LLM selection and download dialog.
-  - Improved `Makefile` for a more hassle-free build and installation.
-  - Minor bug fixes and improvements.
+- Local LLM support with `llama.cpp`.
+- LLM selection and download dialog.
+- Improved `Makefile` for a more hassle-free build and installation.
+- Minor bug fixes and improvements.
 
 ---
 
@@ -97,12 +97,12 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 - **Operating System**: Windows, macOS, or Linux with a stable internet connection.
 - **C++ Compiler**: A recent `g++` version (used in `Makefile`).
 - **Platform specific requirements**:
-    - **Windows**: `MSYS2` / `MINGW64` with some requirements.
-    - **MacOS**: `brew` to install some requirements. `Xcode`.
+  - **Windows**: `MSYS2` / `MINGW64` with some requirements.
+  - **MacOS**: `brew` to install some requirements. `Xcode`.
   
   Optional:
-    - **Git**: For cloning this repository. You can alternatively download the repo in a zip archive.
-    - **OpenAI API Key**: Not needed for local LLMs.
+  - **Git**: For cloning this repository. You can alternatively download the repo in a zip archive.
+  - **OpenAI API Key**: Not needed for local LLMs.
 
 ---
 
@@ -139,19 +139,19 @@ You can also now launch `Git Bash` from Start Menu.
 1. Install [MSYS2](https://www.msys2.org/). Make sure to launch *as Administrator* `MSYS2 MINGW64`, **NOT** `MSYS2 MSYS`. If you don't launch it as Administrator, `make install` won't work. You may run it as regular user if you don't need to use `make install` in the last step.
 2. Update MSYS2 packages: `pacman -Syu`.
 3. Install dependencies:
-   
+
 ```bash
 pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-gtk3 mingw-w64-x86_64-gtkmm3 mingw-w64-x86_64-jsoncpp mingw-w64-x86_64-pcre mingw-w64-x86_64-libidn2 mingw-w64-x86_64-libssh mingw-w64-x86_64-libpsl mingw-w64-x86_64-openldap mingw-w64-x86_64-gnutls mingw-w64-x86_64-lz4 mingw-w64-x86_64-libgcrypt mingw-w64-x86_64-fmt mingw-w64-x86_64-spdlog mingw-w64-x86_64-curl mingw-w64-x86_64-openblas make
 ```
 
 4. Install [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/).
-   **Imporant**: Be sure to check the `Dekstop development with C++` workflow, under which the `Windows 1x SDK` (depending on your Windows version) should be checked.
+   **Important**: Be sure to check the `Dekstop development with C++` workflow, under which the `Windows 1x SDK` (depending on your Windows version) should be checked.
 
 5. **Optional**: If you want to compile AI File Sorter with CUDA (for Nvidia GPUs only) then download and install [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads). CUDA significantly increases the compute speed of local LLMs. Otherwise, AI File Sorter will fall back on either OpenCL or OpenBLAS (CPU only, but faster than without it).
 
 6. Launch `Developer PowerShell for VS 2022` and `cd path\to\cloned\github\repo\app\scripts` (e.g., `cd C:\Users\username\repos\ai-file-sorter\app\scripts`). Check that the script `build_llama.windows.ps1` contains the paths in accordance with your versions of CUDA and Visual Studio tools. In particular, check the version numbers in these lines:
 
-    ```
+    ```ini
     $cudaRoot = "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9"
     -DCMAKE_C_COMPILER="C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe" `
     -DCMAKE_CXX_COMPILER="C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe"
@@ -196,6 +196,7 @@ To uninstall, launch `MSYS2 MINGW64` (**NOT** `MSYS2 MSYS`) *as Administrator*, 
 #### Compile the app
 
 1. Install Xcode (required for Accelerate.framework and AppleClang):
+
 - From the App Store, install **Xcode**.
 - Then run in Terminal:
 
@@ -206,6 +207,7 @@ To uninstall, launch `MSYS2 MINGW64` (**NOT** `MSYS2 MSYS`) *as Administrator*, 
        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 3. Install dependencies:
+
    ```bash
    brew install cmake gcc atkmm@2.28 cairo at-spi2-core pangomm@2.46 gtk+3 gtkmm3 glibmm@2.66 cairomm@1.14 pango harfbuzz glib gettext curl jsoncpp sqlite3 openssl@3 pkg-config libffi expat xorgproto fmt spdlog adwaita-icon-theme hicolor-icon-theme
 
@@ -353,7 +355,7 @@ Before compiling the app:
 
 3. Navigate to the `api-key-encryption` folder, then make a file named `encryption.ini` with the following content:
 
-    ```
+    ```ini
     LLM_API_KEY=sk-...
     SECRET_KEY=your-generated-32-byte-secret-key
     ```
@@ -367,18 +369,21 @@ Before compiling the app:
 
 6. Update the application files:
    - Update `app/include/CryptoManager.hpp` with Obfuscated Key part 1:
+
      ```cpp
      static constexpr char embedded_pc[] = "insert-obfuscated-Key-part-1-here";
      ```
+
    - Add the values to `app/resources/.env` as shown:
-     ```
+
+     ```ini
      ENV_PC=obfuscated-key-part2-value
      ENV_RR=encrypted-data-hex-value
      ```
 
 7. Continue with [Installation](#installation)
----
 
+---
 
 ## Uninstallation
 
@@ -403,6 +408,7 @@ Follow the steps in [How to Use](#how-to-use), but modify **step 2** as follows:
 
 - **Windows:** Assign a drive letter (e.g., `Z:` or `X:`) to your network share ([instructions here](https://support.microsoft.com/en-us/windows/map-a-network-drive-in-windows-29ce55d1-34e3-a7e2-4801-131475f9557d)).  
 - **Linux & macOS:** Mount the network share to a local folder using a command like:  
+
   ```sh
   sudo mount -t cifs //192.168.1.100/shared_folder /mnt/nas -o username=myuser,password=mypass,uid=$(id -u),gid=$(id -g)
   ```
@@ -421,20 +427,20 @@ Follow the steps in [How to Use](#how-to-use), but modify **step 2** as follows:
 
 ## Credits
 
-- Curl: https://github.com/curl/curl
-- Gtk+3: https://gitlab.gnome.org/GNOME/gtk
-- Dotenv: https://github.com/motdotla/dotenv
-- git-scm: https://git-scm.com
-- Hugging Face: https://huggingface.co
-- JSONCPP: https://github.com/open-source-parsers/jsoncpp
-- LLaMa: https://www.llama.com
-- llama.cpp https://github.com/ggml-org/llama.cpp
-- Minstral AI: https://mistral.ai
-- MSYS2: https://www.msys2.org
-- OpenAI: https://platform.openai.com/docs/overview
-- OpenSSL: https://github.com/openssl/openssl
-- SoftPedia: https://www.softpedia.com/get/File-managers/AI-File-Sorter.shtml
-- spdlog: https://github.com/gabime/spdlog
+- Curl: <https://github.com/curl/curl>
+- Gtk+3: <https://gitlab.gnome.org/GNOME/gtk>
+- Dotenv: <https://github.com/motdotla/dotenv>
+- git-scm: <https://git-scm.com>
+- Hugging Face: <https://huggingface.co>
+- JSONCPP: <https://github.com/open-source-parsers/jsoncpp>
+- LLaMa: <https://www.llama.com>
+- llama.cpp <https://github.com/ggml-org/llama.cpp>
+- Minstral AI: <https://mistral.ai>
+- MSYS2: <https://www.msys2.org>
+- OpenAI: <https://platform.openai.com/docs/overview>
+- OpenSSL: <https://github.com/openssl/openssl>
+- SoftPedia: <https://www.softpedia.com/get/File-managers/AI-File-Sorter.shtml>
+- spdlog: <https://github.com/gabime/spdlog>
 
 ## License
 
