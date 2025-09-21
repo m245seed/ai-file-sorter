@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD046 -->
 # AI File Sorter
 
-[![Version](https://badgen.net/badge/version/0.9.2/green)](#) [![Donate via PayPal](https://badgen.net/badge/donate/PayPal/blue)](https://paypal.me/aifilesorter)
+[![Version](https://badgen.net/badge/version/0.9.2/green)](#)
 
 AI File Sorter is a powerful, cross-platform desktop application that automates file organization. Featuring AI integration and a user-friendly GTK-based interface, it categorizes and sorts files and folders based on their names and extensions. The app intelligently assigns categories and, optionally, subcategories, which you can review and edit before confirming. Once approved, the necessary folders are created, and your files are sorted accordingly. The app uses local (LLaMa, Mistral) and remote (ChatGPT 4o-mini) LLMs for this task, depending on your choice.
 
@@ -13,6 +13,7 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 
 - [AI File Sorter](#ai-file-sorter)
   - [Changelog](#changelog)
+    - [[0.9.3] - 2025-09-22](#093---2025-09-22)
     - [[0.9.2] - 2025-08-06](#092---2025-08-06)
     - [[0.9.1] - 2025-08-01](#091---2025-08-01)
     - [[0.9.0] - 2025-07-18](#090---2025-07-18)
@@ -56,6 +57,10 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 ---
 
 ## Changelog
+
+### [0.9.3] - 2025-09-22
+
+  - Added compatability with CUDA 13.
 
 ### [0.9.2] - 2025-08-06
 
