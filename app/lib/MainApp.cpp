@@ -999,14 +999,14 @@ void MainApp::connect_ui_signals()
     }), this);
 
     // Help > Donate
-    GtkWidget* help_donate_menu_item = GTK_WIDGET(gtk_builder_get_object(builder, "help-donate"));
-    if (!help_donate_menu_item) {
-        g_error("Failed to get 'help-donate' menu item from UI file.");
-    }
-    g_signal_connect(help_donate_menu_item, "activate", G_CALLBACK(+[](GtkWidget*, gpointer user_data) {
-        MainApp* self = static_cast<MainApp*>(user_data);
-        self->on_donate_activate();
-    }), this);
+    // GtkWidget* help_donate_menu_item = GTK_WIDGET(gtk_builder_get_object(builder, "help-donate"));
+    // if (!help_donate_menu_item) {
+    //     g_error("Failed to get 'help-donate' menu item from UI file.");
+    // }
+    // g_signal_connect(help_donate_menu_item, "activate", G_CALLBACK(+[](GtkWidget*, gpointer user_data) {
+    //     MainApp* self = static_cast<MainApp*>(user_data);
+    //     self->on_donate_activate();
+    // }), this);
 }
 
 

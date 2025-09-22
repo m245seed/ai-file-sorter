@@ -168,7 +168,7 @@
                         <property name="always-show-image">True</property>
                       </object>
                     </child>
-                    <child>
+                    <!-- <child>
                       <object class="GtkImageMenuItem" id="help-donate">
                         <property name="label" translatable="yes">Donate</property>
                         <property name="visible">True</property>
@@ -178,7 +178,7 @@
                         <property name="use-stock">False</property>
                         <property name="always-show-image">True</property>
                       </object>
-                    </child>
+                    </child> -->
                   </object>
                 </child>
               </object>
