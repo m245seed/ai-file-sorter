@@ -5,5 +5,7 @@
 class ILLMClient {
 public:
     virtual ~ILLMClient() = default;
-    virtual std::string categorize_file(const std::string& file_name, FileType file_type) = 0;
+    virtual std::string categorize_file(const std::string& file_name,
+                                        const std::string& file_path,
+                                        FileType file_type) = 0;
 };

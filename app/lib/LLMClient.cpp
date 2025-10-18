@@ -16,6 +16,25 @@
 #include <iostream>
 #include <sstream>
 
+namespace {
+std::string escape_json(const std::string& input) {
+    std::string out;
+    out.reserve(input.size() * 2);
+    for (char c : input) {
+        switch (c) {
+            case '"': out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
+            default:
+                out += c;
+        }
+    }
+    return out;
+}
+}
+
 
 // Helper function to write the response from curl into a string
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, std::string *response)
@@ -111,32 +130,59 @@ std::string LLMClient::send_api_request(std::string json_payload) {
 }
 
 
-std::string LLMClient::categorize_file(const std::string& file_name, FileType file_type)
+std::string LLMClient::categorize_file(const std::string& file_name,
+                                       const std::string& file_path,
+                                       FileType file_type)
 {
-    std::string json_payload = make_payload(file_name, file_type);
+    if (auto logger = Logger::get_logger("core_logger")) {
+        if (!file_path.empty()) {
+            logger->debug("Requesting remote categorization for '{}' ({}) at '{}'",
+                          file_name, to_string(file_type), file_path);
+        } else {
+            logger->debug("Requesting remote categorization for '{}' ({})", file_name, to_string(file_type));
+        }
+    }
+    std::string json_payload = make_payload(file_name, file_path, file_type);
 
     return send_api_request(json_payload);
 }
 
 
-std::string LLMClient::make_payload(const std::string& file_name, const FileType file_type)
+std::string LLMClient::make_payload(const std::string& file_name,
+                                    const std::string& file_path,
+                                    const FileType file_type)
 {
     std::string prompt;
+    std::string sanitized_path = file_path;
+
+    if (!sanitized_path.empty()) {
+        prompt = "Categorize the item with full path: " + sanitized_path + "\n";
+        prompt += "File name: " + file_name;
+    } else {
+        prompt = "Categorize file: " + file_name;
+    }
 
     if (file_type == FileType::File) {
-        prompt = "Categorize file: " + file_name;
+        // already set above
     } else {
-        prompt = "Categorize directory: " + file_name;
+        if (!sanitized_path.empty()) {
+            prompt = "Categorize the directory with full path: " + sanitized_path + "\nDirectory name: " + file_name;
+        } else {
+            prompt = "Categorize directory: " + file_name;
+        }
     }
+
+    std::string escaped_prompt = escape_json(prompt);
 
     std::string json_payload = R"(
     {
         "model": "gpt-4o-mini",
         "messages": [
-            {"role": "system", "content": "You are a file categorization assistant. If it's an installer, give what category the software falls into after installation. Category must be relevant to file extension general type (e.g., PDF, MD, TXT files have one general type). Always return the category of a file or directory name in one or two words, plural. Also give subcategory where appropriate. Subcategory must be relevant to probable file contents. The format is Category : Subcategory."},
-            {"role": "user", "content": ")" + prompt + R"("}
+            {"role": "system", "content": "You are a file categorization assistant. If it's an installer, describe the type of software it installs. Consider the filename, extension, and any directory context provided. Always reply with one line in the format <Main category> : <Subcategory>. Main category must be broad (one or two words, plural). Subcategory must be specific, relevant, and must not repeat the main category."},
+            {"role": "user", "content": ")" + escaped_prompt + R"("}
         ]
-    })";
+    }
+    )";
     
     return json_payload;
 }

@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <regex>
 #include <iostream>
+#include <sstream>
 
 
 void silent_logger(enum ggml_log_level, const char *, void *) {}
@@ -76,17 +77,21 @@ LocalLLMClient::LocalLLMClient(const std::string& model_path)
 
 
 std::string LocalLLMClient::make_prompt(const std::string& file_name,
+                                        const std::string& file_path,
                                         FileType file_type)
 {
-    std::string prompt;
-    if (file_type == FileType::File) {
-        prompt = "\nCategorize this file:\n" + file_name + "\n";
-    } else {
-        prompt = "\nCategorize the directory:\n" + file_name + "\n";
+    std::ostringstream user_section;
+    if (!file_path.empty()) {
+        user_section << "\nFull path: " << file_path << "\n";
     }
+    user_section << "Name: " << file_name << "\n";
+
+    std::string prompt = (file_type == FileType::File)
+        ? "\nCategorize this file:\n" + user_section.str()
+        : "\nCategorize the directory:\n" + user_section.str();
 
     std::string instruction = R"(<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-    You are a file categorization assistant. You must always follow the exact format. If the file is an installer, determine the type of software it installs. Base your answer strictly on the filename, extension, and description. The output must be:
+    You are a file categorization assistant. You must always follow the exact format. If the file is an installer, determine the type of software it installs. Base your answer on the filename, extension, and any directory context provided. The output must be:
     <Main category> : <Subcategory>
     Main category must be broad (one or two words, plural). Subcategory must be specific, relevant, and never just repeat the main category. Output exactly one line. Do not explain, add line breaks, or use words like 'Subcategory'. If uncertain, always make your best guess based on the name only. Do not apologize or state uncertainty. Never say you lack information.
     Examples:
@@ -206,12 +211,18 @@ std::string LocalLLMClient::generate_response(const std::string &prompt,
 
 
 std::string LocalLLMClient::categorize_file(const std::string& file_name,
+                                            const std::string& file_path,
                                             FileType file_type)
 {
     if (auto logger = Logger::get_logger("core_logger")) {
-        logger->debug("Requesting local categorization for '{}' ({})", file_name, to_string(file_type));
+        if (!file_path.empty()) {
+            logger->debug("Requesting local categorization for '{}' ({}) at '{}'",
+                          file_name, to_string(file_type), file_path);
+        } else {
+            logger->debug("Requesting local categorization for '{}' ({})", file_name, to_string(file_type));
+        }
     }
-    std::string prompt = make_prompt(file_name, file_type);
+    std::string prompt = make_prompt(file_name, file_path, file_type);
     return generate_response(prompt, 64);
 }
 

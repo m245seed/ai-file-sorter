@@ -1,8 +1,10 @@
 #include "Utils.hpp"
+#include <algorithm>
 #include <cstring>  // for memset
 #include <filesystem>
 #include <stdlib.h>
 #include <string>
+#include <vector>
 #include <glibmm/fileutils.h>
 #ifdef _WIN32
     #include <windows.h>
@@ -400,6 +402,65 @@ std::string Utils::get_cudart_dll_name() {
     return buffer; // e.g., "cudart64_13.dll"
 }
 #endif
+
+
+std::string Utils::abbreviate_user_path(const std::string& path) {
+    if (path.empty()) {
+        return "";
+    }
+
+    std::filesystem::path fs_path(path);
+    std::string generic_path = fs_path.generic_string();
+
+    std::vector<std::string> prefixes;
+
+    if (const char* home = std::getenv("HOME")) {
+        std::filesystem::path home_path(home);
+        prefixes.push_back(home_path.generic_string());
+    }
+
+    if (const char* userprofile = std::getenv("USERPROFILE")) {
+        std::filesystem::path profile_path(userprofile);
+        prefixes.push_back(profile_path.generic_string());
+    }
+
+    // Add common Windows-style prefix if not already covered
+    if (prefixes.empty() && Utils::is_os_windows()) {
+        if (const char* username = std::getenv("USERNAME")) {
+            std::string win_prefix = std::string("C:/Users/") + username;
+            prefixes.push_back(win_prefix);
+        }
+    }
+
+    for (auto prefix : prefixes) {
+        if (prefix.empty()) {
+            continue;
+        }
+        if (prefix.back() != '/') {
+            prefix += '/';
+        }
+
+        if (generic_path.size() >= prefix.size()) {
+            if (std::equal(prefix.begin(), prefix.end(), generic_path.begin())) {
+                std::string trimmed = generic_path.substr(prefix.size());
+                while (!trimmed.empty() && trimmed.front() == '/') {
+                    trimmed.erase(trimmed.begin());
+                }
+                if (!trimmed.empty()) {
+                    return trimmed;
+                }
+            }
+        }
+    }
+
+    // If no prefix matched or trimming resulted in empty string, fall back to removing leading separator.
+    std::string sanitized = generic_path;
+    while (!sanitized.empty() && (sanitized.front() == '/' || sanitized.front() == '\\')) {
+        sanitized.erase(sanitized.begin());
+    }
+
+    return sanitized.empty() ? fs_path.filename().generic_string() : sanitized;
+}
 
 
 bool Utils::is_opencl_available(std::vector<std::string>* device_names)

@@ -85,6 +85,7 @@ private:
 
     DatabaseManager::ResolvedCategory
     categorize_file(ILLMClient& llm, const std::string& item_name,
+                    const std::string& item_path,
                     const FileType file_type,
                     const std::function<void(const std::string&)>& report_progress);
     GtkApplication *create_app();
@@ -115,6 +116,7 @@ private:
     std::vector<CategorizedFile>
         categorize_files(const std::vector<FileEntry>& files);
     std::string categorize_with_timeout(ILLMClient &llm, const std::string &item_name,
+                                        const std::string &item_path,
                                         const FileType file_type, int timeout_seconds);
     std::vector<FileEntry> find_files_to_categorize(
         const std::string& directory_path, const std::unordered_set<std::string>& cached_files);

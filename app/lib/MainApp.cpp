@@ -29,6 +29,7 @@
 #include <gtkmm/liststore.h>
 #include <glibmm/fileutils.h>
 #include <string>
+#include <sstream>
 #include <thread>
 #include <unordered_set>
 #include <vector>
@@ -571,11 +572,17 @@ std::optional<CategorizedFile> MainApp::categorize_single_file(
     try {
         std::string dir_path = std::filesystem::path(entry.full_path)
                                                 .parent_path().string();
-        core_logger->debug("Submitting '{}' (type {}) for categorization.", entry.file_name,
-                           to_string(entry.type));
+        std::string abbreviated_path = Utils::abbreviate_user_path(entry.full_path);
+        if (!abbreviated_path.empty()) {
+            core_logger->debug("Submitting '{}' (type {}) for categorization. Full path: '{}'",
+                               entry.file_name, to_string(entry.type), abbreviated_path);
+        } else {
+            core_logger->debug("Submitting '{}' (type {}) for categorization.", entry.file_name,
+                               to_string(entry.type));
+        }
 
         auto resolved = categorize_file(
-            llm, entry.file_name, entry.type,
+            llm, entry.file_name, abbreviated_path, entry.type,
             [this](const std::string& msg) {
                 report_progress(msg);
             });
@@ -621,6 +628,7 @@ std::vector<CategorizedFile> MainApp::categorize_files(
 
 std::string MainApp::categorize_with_timeout(
     ILLMClient& llm, const std::string& item_name,
+    const std::string& item_path,
     const FileType file_type, int timeout_seconds)
 {
     core_logger->debug("Issuing categorize request for '{}' ({}) with timeout {}s.",
@@ -629,9 +637,9 @@ std::string MainApp::categorize_with_timeout(
     std::future<std::string> future = promise.get_future();
 
     std::thread([&llm, promise = std::move(promise), item_name,
-                file_type]()mutable {
+                item_path, file_type]()mutable {
         try {
-            std::string result = llm.categorize_file(item_name, file_type);
+            std::string result = llm.categorize_file(item_name, item_path, file_type);
             promise.set_value(result);
         } catch (const std::exception& e) {
             promise.set_exception(std::current_exception());
@@ -651,6 +659,7 @@ std::string MainApp::categorize_with_timeout(
 
 DatabaseManager::ResolvedCategory
 MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
+                         const std::string& item_path,
                          const FileType file_type,
                          const std::function<void(const std::string&)>& report_progress)
 {
@@ -663,8 +672,11 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
         auto resolved = db_manager.resolve_category(category, subcategory);
         core_logger->info("Found in local DB: {} - Category: {}, Subcategory: {}", item_name,
                           resolved.category, resolved.subcategory);
-        std::string message = 
+        std::string message =
             "\nFound in local DB: " + item_name + " [" + resolved.category + "/" + resolved.subcategory + "]";
+        if (!item_path.empty()) {
+            message += " (" + item_path + ")";
+        }
         report_progress(message);
         return resolved;
     }
@@ -692,10 +704,10 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
             if (using_local_llm) {
                 // Wait 30 seconds if using a local LLM
                 category_subcategory = categorize_with_timeout(
-                    llm, item_name, file_type, 60);
+                    llm, item_name, item_path, file_type, 60);
             } else {
                 category_subcategory = categorize_with_timeout(
-                    llm, item_name, file_type, 10);
+                    llm, item_name, item_path, file_type, 10);
             }
         } catch (const std::exception& ex) {
             std::string message = "LLM Timeout/Error: "
@@ -713,6 +725,9 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
 
         std::ostringstream message;
         message << "Suggested by AI: " << item_name << " [" << resolved.category << "/" << resolved.subcategory << "]";
+        if (!item_path.empty()) {
+            message << " (" << item_path << ")";
+        }
         report_progress(message.str());
 
         return resolved;

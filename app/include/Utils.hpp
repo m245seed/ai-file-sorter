@@ -30,6 +30,7 @@ public:
     static bool is_opencl_available(std::vector<std::string>* device_names = nullptr);
     static int get_installed_cuda_runtime_version();
     static std::string get_cudart_dll_name();
+    static std::string abbreviate_user_path(const std::string& path);
 
 private:
     static int get_ngl(int vram_mb);
