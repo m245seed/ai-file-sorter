@@ -33,7 +33,10 @@ cmake -S . -B build -DGGML_CUDA=$CUDASWITCH \
       -DGGML_BLAS=ON \
       -DGGML_BLAS_VENDOR=OpenBLAS \
       -DBUILD_SHARED_LIBS=ON \
-      -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++-10
+      -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++-10 \
+      -DGGML_NATIVE=OFF \
+      -DCMAKE_C_FLAGS="-mavx2 -mfma" \
+      -DCMAKE_CXX_FLAGS="-mavx2 -mfma"
 
 cmake --build build --config Release -- -j$(nproc)
 
