@@ -1,6 +1,7 @@
 #include "EmbeddedEnv.hpp"
+#include "Logger.hpp"
 #include <glib.h>
-#include <sstream> 
+#include <sstream>
 #include <cstdlib>
 #include <stdexcept>
 #include <gio/gio.h>
@@ -14,8 +15,17 @@ EmbeddedEnv::EmbeddedEnv(const std::string& resource_path)
 
 
 void EmbeddedEnv::load_env() {
+    auto logger = Logger::get_logger("core_logger");
+    if (logger) {
+        logger->debug("Loading embedded environment from {}", resource_path_);
+    }
+
     std::string env_content = extract_env_content();
     parse_env(env_content);
+
+    if (logger) {
+        logger->info("Embedded environment loaded from {}", resource_path_);
+    }
 }
 
 
@@ -29,6 +39,9 @@ std::string EmbeddedEnv::extract_env_content()
         if (error) {
             error_message += " - " + std::string(error->message);
             g_error_free(error);
+        }
+        if (auto logger = Logger::get_logger("core_logger")) {
+            logger->error("{}", error_message);
         }
         throw std::runtime_error(error_message);
     }
@@ -45,6 +58,7 @@ std::string EmbeddedEnv::extract_env_content()
 void EmbeddedEnv::parse_env(const std::string& env_content) {
     std::istringstream stream(env_content);
     std::string line;
+    size_t loaded_entries = 0;
 
     while (std::getline(stream, line)) {
         if (line.empty() || line[0] == '#') {
@@ -53,7 +67,11 @@ void EmbeddedEnv::parse_env(const std::string& env_content) {
 
         std::size_t equal_pos = line.find('=');
         if (equal_pos == std::string::npos) {
-            throw std::runtime_error("Invalid .env line: " + line);
+            std::string message = "Invalid .env line: " + line;
+            if (auto logger = Logger::get_logger("core_logger")) {
+                logger->warn("{}", message);
+            }
+            throw std::runtime_error(message);
         }
 
         std::string key = line.substr(0, equal_pos);
@@ -68,6 +86,14 @@ void EmbeddedEnv::parse_env(const std::string& env_content) {
 #else
         setenv(key.c_str(), value.c_str(), 1);  // POSIX-compliant
 #endif
+        ++loaded_entries;
+        if (auto logger = Logger::get_logger("core_logger")) {
+            logger->debug("Loaded env key '{}'", key);
+        }
+    }
+
+    if (auto logger = Logger::get_logger("core_logger")) {
+        logger->info("Loaded {} environment variable(s) from embedded resource", loaded_entries);
     }
 }
 

@@ -223,9 +223,12 @@ gboolean MainApp::update_ui_after_analysis()
 {
     stop_analysis = false;
     gtk_button_set_label(analyze_button, "Analyze folder");
+    core_logger->info("Updating UI after analysis. {} file(s) ready for review.", new_files_to_sort.size());
 
     if (new_files_to_sort.empty()) {
         DialogUtils::show_error_dialog(GTK_WINDOW(this->main_window), ERR_NO_FILES_TO_CATEGORIZE);
+        core_logger->warn("Analysis completed for '{}' but no files were eligible for sorting.",
+                          get_folder_path());
 
         if (analyze_thread.joinable()) {
             analyze_thread.join();
@@ -248,6 +251,7 @@ void MainApp::perform_analysis()
 {
     std::string directory_path = get_folder_path();
     if (directory_path.empty()) {
+        core_logger->error("Attempted to perform analysis with an empty directory path.");
         g_idle_add([](gpointer user_data) -> gboolean {
             MainApp* app = static_cast<MainApp*>(user_data);
             DialogUtils::show_error_dialog(GTK_WINDOW(app->main_window), "No folder path provided.");
@@ -255,6 +259,8 @@ void MainApp::perform_analysis()
         }, this);        
         return;
     }
+
+    core_logger->info("Starting analysis for directory '{}'", directory_path);
 
     g_idle_add([](gpointer user_data) -> gboolean {
         MainApp* app = static_cast<MainApp*>(user_data);
@@ -300,6 +306,8 @@ void MainApp::perform_analysis()
         }
 
         files_to_categorize = find_files_to_categorize(directory_path, cached_file_names);
+        core_logger->debug("Found {} item(s) pending categorization in '{}'.",
+                           files_to_categorize.size(), directory_path);
 
         if (!files_to_categorize.empty()) {
             g_idle_add([](gpointer user_data) -> gboolean {
@@ -343,6 +351,8 @@ void MainApp::perform_analysis()
         }, this);
 
         this->new_files_with_categories = categorize_files(files_to_categorize);
+        core_logger->info("Categorization produced {} new record(s).",
+                          new_files_with_categories.size());
 
         this->already_categorized_files.insert(
             already_categorized_files.end(),
@@ -351,6 +361,8 @@ void MainApp::perform_analysis()
         );
 
         this->new_files_to_sort = compute_files_to_sort();
+        core_logger->debug("{} file(s) queued for sorting after analysis.",
+                           new_files_to_sort.size());
 
         g_idle_add([](gpointer user_data) -> gboolean {
             MainApp* app = static_cast<MainApp*>(user_data);
@@ -366,6 +378,7 @@ void MainApp::perform_analysis()
     } catch (const std::exception& ex) {
         DialogUtils::show_error_dialog(GTK_WINDOW(this->main_window), "Analysis Error: " + std::string(ex.what()));
         g_printerr("Exception during analysis: %s\n", ex.what());
+        core_logger->error("Exception during analysis: {}", ex.what());
     }
 }
 
@@ -393,13 +406,16 @@ void MainApp::on_analyze_button_clicked(GtkButton *button, gpointer main_app_ins
     MainApp *app = static_cast<MainApp*>(main_app_instance);
 
     const char *folder_path = gtk_entry_get_text(app->path_entry);
+    app->core_logger->info("Analyze action triggered for '{}'", folder_path);
     if (!Utils::is_valid_directory(folder_path)) {
         DialogUtils::show_error_dialog(GTK_WINDOW(app->main_window), ERR_INVALID_PATH);
+        app->core_logger->warn("User supplied invalid directory '{}'", folder_path);
         return;
     }
 
     if (!Utils::is_network_available()) {
         DialogUtils::show_error_dialog(GTK_WINDOW(app->main_window), ERR_NO_INTERNET_CONNECTION);
+        app->core_logger->warn("Network unavailable when attempting to analyze '{}'", folder_path);
         return;
     }
 
@@ -407,11 +423,13 @@ void MainApp::on_analyze_button_clicked(GtkButton *button, gpointer main_app_ins
         app->stop_analysis = true;
         app->analyze_thread.join();
         gtk_button_set_label(button, "Analyze folder");
+        app->core_logger->info("Existing analysis cancelled for '{}'", folder_path);
         return;
     }
 
     app->stop_analysis = false;
     gtk_button_set_label(button, "Stop Analyzing");
+    app->core_logger->info("Launching analysis thread for '{}'", folder_path);
 
     g_idle_add([](gpointer user_data) -> gboolean {
         MainApp* app = static_cast<MainApp*>(user_data);
@@ -440,6 +458,8 @@ MainApp::find_files_to_categorize(const std::string& directory_path,
 {
     std::vector<FileEntry> actual_files =
         dirscanner.get_directory_entries(directory_path, file_scan_options);
+    core_logger->debug("Directory '{}' has {} actual item(s); {} cached entry name(s) loaded.",
+                       directory_path, actual_files.size(), cached_files.size());
     std::vector<FileEntry> found_files;
 
     for (const auto &[full_file_path, file_name, file_type] : actual_files) {
@@ -448,6 +468,7 @@ MainApp::find_files_to_categorize(const std::string& directory_path,
         }
     }
 
+    core_logger->debug("{} item(s) require categorization after cache comparison.", found_files.size());
     return found_files;
 }
 
@@ -460,6 +481,7 @@ std::vector<CategorizedFile> MainApp::compute_files_to_sort()
     std::vector<FileEntry> actual_files = dirscanner.get_directory_entries(
                                               get_folder_path(), file_scan_options
                                               );
+    core_logger->debug("Computing files to sort. {} entries currently in directory.", actual_files.size());
     
     for (const auto &[full_file_path, file_name, file_type] : actual_files) {
         // Search for each file in already_categorized_files to get its category data
@@ -477,6 +499,7 @@ std::vector<CategorizedFile> MainApp::compute_files_to_sort()
         }
     }
 
+    core_logger->info("{} file(s) ready for move after reconciliation.", files_to_sort.size());
     return files_to_sort;
 }
 
@@ -548,6 +571,8 @@ std::optional<CategorizedFile> MainApp::categorize_single_file(
     try {
         std::string dir_path = std::filesystem::path(entry.full_path)
                                                 .parent_path().string();
+        core_logger->debug("Submitting '{}' (type {}) for categorization.", entry.file_name,
+                           to_string(entry.type));
 
         auto [category, subcategory] = categorize_file(
             llm, entry.file_name, entry.type,
@@ -555,6 +580,8 @@ std::optional<CategorizedFile> MainApp::categorize_single_file(
                 report_progress(msg);
             });
 
+        core_logger->info("Categorized '{}' as '{} / {}'.", entry.file_name, category,
+                          subcategory.empty() ? "<none>" : subcategory);
         return CategorizedFile{dir_path, entry.file_name, entry.type,
                                category, subcategory};
     } catch (const std::exception& ex) {
@@ -573,6 +600,7 @@ std::vector<CategorizedFile> MainApp::categorize_files(
 {
     std::unique_ptr<ILLMClient> llm = make_llm_client();
     std::vector<CategorizedFile> categorized_items;
+    core_logger->info("Beginning categorization for {} item(s).", items.size());
 
     for (const auto& entry : items) {
         auto result = categorize_single_file(*llm, entry);
@@ -580,6 +608,8 @@ std::vector<CategorizedFile> MainApp::categorize_files(
         categorized_items.push_back(std::move(result.value()));
     }
 
+    core_logger->info("Finished categorization. {} item(s) processed successfully.",
+                      categorized_items.size());
     return categorized_items;
 }
 
@@ -588,6 +618,8 @@ std::string MainApp::categorize_with_timeout(
     ILLMClient& llm, const std::string& item_name,
     const FileType file_type, int timeout_seconds)
 {
+    core_logger->debug("Issuing categorize request for '{}' ({}) with timeout {}s.",
+                       item_name, to_string(file_type), timeout_seconds);
     std::promise<std::string> promise;
     std::future<std::string> future = promise.get_future();
 
@@ -641,6 +673,7 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
             std::string message = "CryptoManager error for \"" + item_name + "\": " + ex.what();
             report_progress(message);
             g_printerr("%s\n", message.c_str());
+            core_logger->error("{}", message);
             return std::make_tuple("", "");
         }
     }
@@ -661,6 +694,7 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
                 + std::string(ex.what());
             report_progress(message);
             g_printerr("%s\n", message.c_str());
+            core_logger->warn("Categorization timeout/error for '{}': {}", item_name, ex.what());
             return std::make_tuple("", "");
         }
 
@@ -677,6 +711,7 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
         message << "LLM Error \"" << ex.what();
         report_progress(message.str());
         g_printerr("%s\n", message.str().c_str());
+        core_logger->error("LLM error while categorizing '{}': {}", item_name, ex.what());
         throw;
     }
 }

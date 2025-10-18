@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <string>
 #include <filesystem>
+#include <chrono>
 
 
 std::string Logger::get_log_directory()
@@ -50,7 +51,7 @@ void Logger::setup_loggers()
     auto ui_log_path = log_dir + "/ui.log";
     
     auto core_console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    auto core_file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(db_log_path, 1048576 * 5, 3);
+    auto core_file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(core_log_path, 1048576 * 5, 3);
 
     auto db_console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     auto db_file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(db_log_path, 1048576 * 5, 3);
@@ -66,6 +67,15 @@ void Logger::setup_loggers()
     spdlog::register_logger(db_logger);
     spdlog::register_logger(ui_logger);
 
+    core_logger->set_level(spdlog::level::debug);
+    db_logger->set_level(spdlog::level::debug);
+    ui_logger->set_level(spdlog::level::debug);
+
+    core_logger->flush_on(spdlog::level::info);
+    db_logger->flush_on(spdlog::level::info);
+    ui_logger->flush_on(spdlog::level::info);
+
+    spdlog::flush_every(std::chrono::seconds(2));
     spdlog::set_level(spdlog::level::debug);
     spdlog::info("Loggers initialized.");
 }

@@ -1,4 +1,5 @@
 #include "LocalLLMClient.hpp"
+#include "Logger.hpp"
 #include "Utils.hpp"
 #include "llama.h"
 #include <string>
@@ -21,6 +22,11 @@ void llama_debug_logger(enum ggml_log_level level, const char *text, void *user_
 LocalLLMClient::LocalLLMClient(const std::string& model_path)
     : model_path(model_path)
 {
+    auto logger = Logger::get_logger("core_logger");
+    if (logger) {
+        logger->info("Initializing local LLM client with model '{}'", model_path);
+    }
+
     llama_log_set(silent_logger, nullptr);
     ggml_backend_load_all();
 
@@ -50,7 +56,14 @@ LocalLLMClient::LocalLLMClient(const std::string& model_path)
 
     model = llama_model_load_from_file(model_path.c_str(), model_params);
     if (!model) {
+        if (logger) {
+            logger->error("Failed to load model from '{}'", model_path);
+        }
         throw std::runtime_error("Failed to load model");
+    }
+
+    if (logger) {
+        logger->info("Loaded local model '{}'", model_path);
     }
 
     vocab = llama_model_get_vocab(model);
@@ -91,8 +104,18 @@ std::string LocalLLMClient::make_prompt(const std::string& file_name,
 std::string LocalLLMClient::generate_response(const std::string &prompt,
                                               int n_predict)
 {
+    auto logger = Logger::get_logger("core_logger");
+    if (logger) {
+        logger->debug("Generating response with prompt length {} tokens target {}", prompt.size(), n_predict);
+    }
+
     auto* ctx = llama_init_from_model(model, ctx_params);
-    if (!ctx) return "";
+    if (!ctx) {
+        if (logger) {
+            logger->error("Failed to initialize llama context");
+        }
+        return "";
+    }
 
     auto* smpl = llama_sampler_chain_init(llama_sampler_chain_default_params());
     llama_sampler_chain_add(smpl, llama_sampler_init_min_p(0.05f, 1));
@@ -109,6 +132,9 @@ std::string LocalLLMClient::generate_response(const std::string &prompt,
                                                formatted_prompt.data(),
                                                formatted_prompt.size());
     if (actual_len < 0) {
+        if (logger) {
+            logger->error("Failed to apply chat template to prompt");
+        }
         fprintf(stderr, "Failed to apply chat template\n");
         return "";
     }
@@ -123,6 +149,9 @@ std::string LocalLLMClient::generate_response(const std::string &prompt,
                        prompt_tokens.data(), prompt_tokens.size(), true,
                        true) < 0) {
         fprintf(stderr, "%s: error: failed to tokenize the prompt\n", __func__);
+        if (logger) {
+            logger->error("Tokenization failed for prompt");
+        }
         llama_model_free(model);
         return "";
     }
@@ -136,6 +165,9 @@ std::string LocalLLMClient::generate_response(const std::string &prompt,
     int generated_tokens = 0;
     for (int n_pos = 0; generated_tokens < max_tokens; ) {
         if (llama_decode(ctx, batch)) {
+            if (logger) {
+                logger->warn("llama_decode returned non-zero status; aborting generation");
+            }
             break;
         }
 
@@ -165,6 +197,10 @@ std::string LocalLLMClient::generate_response(const std::string &prompt,
     llama_sampler_reset(smpl);
     llama_free(ctx);
 
+    if (logger) {
+        logger->debug("Generation complete, produced {} character(s)", output.size());
+    }
+
     return sanitize_output(output);
 }
 
@@ -172,6 +208,9 @@ std::string LocalLLMClient::generate_response(const std::string &prompt,
 std::string LocalLLMClient::categorize_file(const std::string& file_name,
                                             FileType file_type)
 {
+    if (auto logger = Logger::get_logger("core_logger")) {
+        logger->debug("Requesting local categorization for '{}' ({})", file_name, to_string(file_type));
+    }
     std::string prompt = make_prompt(file_name, file_type);
     return generate_response(prompt, 64);
 }
@@ -203,5 +242,8 @@ std::string LocalLLMClient::sanitize_output(std::string& output) {
 
 
 LocalLLMClient::~LocalLLMClient() {
+    if (auto logger = Logger::get_logger("core_logger")) {
+        logger->debug("Destroying LocalLLMClient for model '{}'", model_path);
+    }
     if (model) llama_model_free(model);
 }

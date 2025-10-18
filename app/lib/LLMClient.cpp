@@ -1,6 +1,7 @@
 #include "LLMClient.hpp"
 #include "Types.hpp"
 #include "Utils.hpp"
+#include "Logger.hpp"
 #include <curl/curl.h>
 #include <glib.h>
 #include <filesystem>
@@ -37,9 +38,17 @@ std::string LLMClient::send_api_request(std::string json_payload) {
     CURLcode res;
     std::string response_string;
     std::string api_url = "https://api.openai.com/v1/chat/completions";
+    auto logger = Logger::get_logger("core_logger");
+
+    if (logger) {
+        logger->debug("Dispatching remote LLM request to {}", api_url);
+    }
 
     curl = curl_easy_init();
     if (!curl) {
+        if (logger) {
+            logger->critical("Failed to initialize cURL handle for remote request");
+        }
         throw std::runtime_error("Initialization Error: Failed to initialize cURL.");
     }
 
@@ -63,6 +72,9 @@ std::string LLMClient::send_api_request(std::string json_payload) {
     if (res != CURLE_OK) {
         curl_easy_cleanup(curl);
         curl_slist_free_all(headers);
+        if (logger) {
+            logger->error("cURL request failed: {}", curl_easy_strerror(res));
+        }
         throw std::runtime_error("Network Error: " + std::string(curl_easy_strerror(res)));
     }
 
@@ -77,6 +89,9 @@ std::string LLMClient::send_api_request(std::string json_payload) {
     std::string errors;
     
     if (!Json::parseFromStream(reader_builder, response_stream, &root, &errors)) {
+        if (logger) {
+            logger->error("Failed to parse JSON response: {}", errors);
+        }
         throw std::runtime_error("Response Error: Failed to parse JSON response. " + errors);
     }
 
