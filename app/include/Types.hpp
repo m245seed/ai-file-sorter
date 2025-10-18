@@ -18,6 +18,7 @@ struct CategorizedFile {
     FileType type;
     std::string category;
     std::string subcategory;
+    int taxonomy_id{0};
 };
 
 inline std::string to_string(FileType type) {

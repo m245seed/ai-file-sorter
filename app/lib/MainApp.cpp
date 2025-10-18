@@ -212,7 +212,7 @@ std::unordered_set<std::string> MainApp::extract_file_names(
     const std::vector<CategorizedFile>& categorized_files)
 {
     std::unordered_set<std::string> file_names;
-    for (const auto& [file_path, file_name, file_type, category, subcategory] : categorized_files) {
+    for (const auto& [file_path, file_name, file_type, category, subcategory, taxonomy_id] : categorized_files) {
         file_names.insert(file_name);
     }
     return file_names;
@@ -574,16 +574,21 @@ std::optional<CategorizedFile> MainApp::categorize_single_file(
         core_logger->debug("Submitting '{}' (type {}) for categorization.", entry.file_name,
                            to_string(entry.type));
 
-        auto [category, subcategory] = categorize_file(
+        auto resolved = categorize_file(
             llm, entry.file_name, entry.type,
             [this](const std::string& msg) {
                 report_progress(msg);
             });
 
-        core_logger->info("Categorized '{}' as '{} / {}'.", entry.file_name, category,
-                          subcategory.empty() ? "<none>" : subcategory);
+        if (resolved.category.empty() || resolved.subcategory.empty()) {
+            core_logger->warn("Categorization for '{}' returned empty category/subcategory.", entry.file_name);
+            return std::nullopt;
+        }
+
+        core_logger->info("Categorized '{}' as '{} / {}'.", entry.file_name, resolved.category,
+                          resolved.subcategory.empty() ? "<none>" : resolved.subcategory);
         return CategorizedFile{dir_path, entry.file_name, entry.type,
-                               category, subcategory};
+                               resolved.category, resolved.subcategory, resolved.taxonomy_id};
     } catch (const std::exception& ex) {
         std::string error_message = "Error categorizing file \"" +
             entry.file_name + "\": " + ex.what();
@@ -644,7 +649,7 @@ std::string MainApp::categorize_with_timeout(
 }
 
 
-std::tuple<std::string, std::string>
+DatabaseManager::ResolvedCategory
 MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
                          const FileType file_type,
                          const std::function<void(const std::string&)>& report_progress)
@@ -654,11 +659,14 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
     if (categorization.size() >= 2) {
         std::string category = categorization[0];
         std::string subcategory = categorization[1];
-        core_logger->info("Found in local DB: {} - Category: {}, Subcategory: {}", item_name, category, subcategory);
+
+        auto resolved = db_manager.resolve_category(category, subcategory);
+        core_logger->info("Found in local DB: {} - Category: {}, Subcategory: {}", item_name,
+                          resolved.category, resolved.subcategory);
         std::string message = 
-            "\nFound in local DB: " + item_name + " [" + category + "/" + subcategory + "]";
+            "\nFound in local DB: " + item_name + " [" + resolved.category + "/" + resolved.subcategory + "]";
         report_progress(message);
-        return std::make_tuple(category, subcategory);
+        return resolved;
     }
 
     if (!using_local_llm) {
@@ -674,7 +682,7 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
             report_progress(message);
             g_printerr("%s\n", message.c_str());
             core_logger->error("{}", message);
-            return std::make_tuple("", "");
+            return DatabaseManager::ResolvedCategory{-1, "", ""};
         }
     }
 
@@ -695,17 +703,19 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
             report_progress(message);
             g_printerr("%s\n", message.c_str());
             core_logger->warn("Categorization timeout/error for '{}': {}", item_name, ex.what());
-            return std::make_tuple("", "");
+            return DatabaseManager::ResolvedCategory{-1, "", ""};
         }
 
         auto [category, subcategory] =
             split_category_subcategory(category_subcategory);
 
+        auto resolved = db_manager.resolve_category(category, subcategory);
+
         std::ostringstream message;
-        message << "Suggested by AI: " << item_name << " [" << category << "/" << subcategory << "]";
+        message << "Suggested by AI: " << item_name << " [" << resolved.category << "/" << resolved.subcategory << "]";
         report_progress(message.str());
 
-        return std::make_tuple(category, subcategory);
+        return resolved;
     } catch (const std::exception& ex) {
         std::ostringstream message;
         message << "LLM Error \"" << ex.what();

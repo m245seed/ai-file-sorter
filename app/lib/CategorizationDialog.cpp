@@ -384,7 +384,25 @@ void CategorizationDialog::record_categorization_to_db() {
         if (index < categorized_files.size()) {
             std::string full_file_path = categorized_files[index].file_path;
             std::string dir_path = std::filesystem::path(full_file_path).string();
-            db_manager->insert_or_update_file_with_categorization(file_name, file_type, dir_path, category, subcategory);
+
+            DatabaseManager::ResolvedCategory resolved =
+                db_manager->resolve_category(category, subcategory);
+
+            db_manager->insert_or_update_file_with_categorization(
+                file_name, file_type, dir_path, resolved);
+
+            categorized_files[index].category = resolved.category;
+            categorized_files[index].subcategory = resolved.subcategory;
+            categorized_files[index].taxonomy_id = resolved.taxonomy_id;
+
+            GtkTreeIter iter;
+            if (gtk_tree_model_iter_nth_child(GTK_TREE_MODEL(liststore), &iter, nullptr,
+                                              static_cast<int>(index))) {
+                gtk_list_store_set(liststore, &iter,
+                                   3, resolved.category.c_str(),
+                                   4, resolved.subcategory.c_str(),
+                                   -1);
+            }
             index++;
         } else {
             ui_logger->warn("Mismatch between treeview files and categorized_files at index {}", index);

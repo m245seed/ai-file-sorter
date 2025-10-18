@@ -83,10 +83,10 @@ private:
     CheckboxData* data_for_directories = nullptr;
     bool using_local_llm{false};
 
-    std::tuple<std::string, std::string>
+    DatabaseManager::ResolvedCategory
     categorize_file(ILLMClient& llm, const std::string& item_name,
-                const FileType file_type,
-                const std::function<void(const std::string&)>& report_progress);
+                    const FileType file_type,
+                    const std::function<void(const std::string&)>& report_progress);
     GtkApplication *create_app();
     void initialize_checkboxes();
     static void on_file_chooser_response(GtkDialog *dialog, gint response, gpointer user_data);
