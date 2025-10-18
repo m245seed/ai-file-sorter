@@ -59,8 +59,11 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 
 ## Changelog
 
-### [0.9.4] - 2025-10-19
+### [0.9.7] - 2025-10-19
 
+- Added paths to files in LLM requests for more context.
+- Added taxonomy for more consistent assignment of categories across categorizations.
+  (Narrowing down the number of categories and subcategories).
 - Added more logging coverage throughout the code base.
 
 ### [0.9.3] - 2025-09-22
