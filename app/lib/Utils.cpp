@@ -1,5 +1,6 @@
 #include "Utils.hpp"
 #include <algorithm>
+#include <cstdio>
 #include <cstring>  // for memset
 #include <filesystem>
 #include <stdlib.h>
@@ -194,53 +195,73 @@ int Utils::determine_ngl_cuda() {
     std::string dllName = get_cudart_dll_name();
     LibraryHandle lib = loadLibrary(dllName.c_str());
 #else
-    const char* dllName = "libcudart.so";
-    LibraryHandle lib = loadLibrary(dllName);
+    LibraryHandle lib = loadLibrary("libcudart.so");
+    if (!lib) {
+        lib = loadLibrary("libcudart.so.12");
+    }
 #endif
 
     if (!lib) {
-        std::cerr << "Failed to load CUDA runtime library: " << dllName << "\n";
+        std::cerr << "Failed to load CUDA runtime library.\n";
         return 0;
     }
 
-    using cudaGetDeviceProperties_t = int (*)(void*, int);
+    using cudaGetDeviceCount_t = int (*)(int*);
+    using cudaSetDevice_t = int (*)(int);
     using cudaMemGetInfo_t = int (*)(size_t*, size_t*);
+    using cudaGetDeviceProperties_t = int (*)(void*, int);
 
-    auto cudaGetDeviceProperties = reinterpret_cast<cudaGetDeviceProperties_t>(
-        getSymbol(lib, "cudaGetDeviceProperties"));
-    auto cudaMemGetInfo = reinterpret_cast<cudaMemGetInfo_t>(
-        getSymbol(lib, "cudaMemGetInfo"));
+    auto cudaGetDeviceCount = reinterpret_cast<cudaGetDeviceCount_t>(getSymbol(lib, "cudaGetDeviceCount"));
+    auto cudaSetDevice = reinterpret_cast<cudaSetDevice_t>(getSymbol(lib, "cudaSetDevice"));
+    auto cudaMemGetInfo = reinterpret_cast<cudaMemGetInfo_t>(getSymbol(lib, "cudaMemGetInfo"));
+    auto cudaGetDeviceProperties = reinterpret_cast<cudaGetDeviceProperties_t>(getSymbol(lib, "cudaGetDeviceProperties"));
 
-    if (!cudaGetDeviceProperties) {
-        std::cerr << "Failed to load symbol: cudaGetDeviceProperties\n";
+    if (!cudaGetDeviceCount || !cudaSetDevice || !cudaMemGetInfo) {
+        std::cerr << "Failed to resolve required CUDA runtime symbols.\n";
         closeLibrary(lib);
         return 0;
     }
 
-    constexpr size_t cudaDevicePropSize = 2560;
-    alignas(std::max_align_t) uint8_t prop_buffer[cudaDevicePropSize];
-    std::memset(prop_buffer, 0, sizeof(prop_buffer));
-
-    int device = 0;
-    if (cudaGetDeviceProperties(prop_buffer, device) != 0) {
-        std::cerr << "Warning: cudaGetDeviceProperties failed\n";
+    int device_count = 0;
+    if (cudaGetDeviceCount(&device_count) != 0 || device_count == 0) {
+        std::cerr << "Failed to query CUDA devices.\n";
         closeLibrary(lib);
         return 0;
     }
 
-    size_t total_mem_bytes = *reinterpret_cast<size_t*>(prop_buffer);
+    if (cudaSetDevice(0) != 0) {
+        std::cerr << "Failed to set CUDA device 0.\n";
+        closeLibrary(lib);
+        return 0;
+    }
+
     size_t free_bytes = 0;
+    size_t total_bytes = 0;
 
-    if (cudaMemGetInfo) {
-        if (cudaMemGetInfo(&free_bytes, &total_mem_bytes) != 0) {
-            std::cerr << "Warning: cudaMemGetInfo failed\n";
-            free_bytes = 0;
+    if (cudaMemGetInfo(&free_bytes, &total_bytes) != 0) {
+        std::cerr << "Warning: cudaMemGetInfo failed\n";
+        free_bytes = 0;
+        total_bytes = 0;
+    }
+
+    if (total_bytes == 0 && cudaGetDeviceProperties) {
+        // As a fallback, query total memory from cudaGetDeviceProperties.
+        constexpr size_t cudaDevicePropSize = 2560;
+        alignas(std::max_align_t) uint8_t prop_buffer[cudaDevicePropSize];
+        std::memset(prop_buffer, 0, sizeof(prop_buffer));
+        if (cudaGetDeviceProperties(prop_buffer, 0) == 0) {
+            struct DevicePropShim {
+                char name[256];
+                size_t totalGlobalMem;
+            };
+            auto *prop = reinterpret_cast<DevicePropShim*>(prop_buffer);
+            total_bytes = prop->totalGlobalMem;
         }
     }
 
     closeLibrary(lib);
 
-    size_t usable_bytes = free_bytes > 0 ? free_bytes : total_mem_bytes;
+    size_t usable_bytes = (free_bytes > 0) ? free_bytes : total_bytes;
     int vram_mb = static_cast<int>(usable_bytes / (1024 * 1024));
 
     return get_ngl(vram_mb);
