@@ -10,6 +10,17 @@
 #include <regex>
 #include <iostream>
 #include <sstream>
+#include <cstdlib>
+
+#if defined(_WIN32)
+static void set_env_var(const char *key, const char *value) {
+    _putenv_s(key, value);
+}
+#else
+static void set_env_var(const char *key, const char *value) {
+    setenv(key, value, 1);
+}
+#endif
 
 
 void silent_logger(enum ggml_log_level, const char *, void *) {}
@@ -29,6 +40,17 @@ LocalLLMClient::LocalLLMClient(const std::string& model_path)
     }
 
     llama_log_set(silent_logger, nullptr);
+
+    bool cuda_available = false;
+#ifdef GGML_USE_METAL
+    (void)cuda_available;
+#else
+    cuda_available = Utils::is_cuda_available();
+    if (!cuda_available) {
+        set_env_var("GGML_DISABLE_CUDA", "1");
+    }
+#endif
+
     ggml_backend_load_all();
 
 
@@ -37,9 +59,16 @@ LocalLLMClient::LocalLLMClient(const std::string& model_path)
     #ifdef GGML_USE_METAL
         model_params.n_gpu_layers = 0;
     #else
-        if (Utils::is_cuda_available()) {
-            model_params.n_gpu_layers = Utils::determine_ngl_cuda();
-            std::cout << "ngl: " << model_params.n_gpu_layers << std::endl;
+        if (cuda_available) {
+            int ngl = Utils::determine_ngl_cuda();
+            if (ngl > 0) {
+                model_params.n_gpu_layers = ngl;
+                std::cout << "ngl: " << model_params.n_gpu_layers << std::endl;
+            } else {
+                model_params.n_gpu_layers = 0;
+                set_env_var("GGML_DISABLE_CUDA", "1");
+                std::cout << "CUDA not usable, falling back to CPU.\n";
+            }
         } else {
             model_params.n_gpu_layers = 0;
             printf("model_params.n_gpu_layers: %d\n",

@@ -206,31 +206,14 @@ int Utils::determine_ngl_cuda() {
         return 0;
     }
 
-    using cudaGetDeviceCount_t = int (*)(int*);
-    using cudaSetDevice_t = int (*)(int);
     using cudaMemGetInfo_t = int (*)(size_t*, size_t*);
     using cudaGetDeviceProperties_t = int (*)(void*, int);
 
-    auto cudaGetDeviceCount = reinterpret_cast<cudaGetDeviceCount_t>(getSymbol(lib, "cudaGetDeviceCount"));
-    auto cudaSetDevice = reinterpret_cast<cudaSetDevice_t>(getSymbol(lib, "cudaSetDevice"));
     auto cudaMemGetInfo = reinterpret_cast<cudaMemGetInfo_t>(getSymbol(lib, "cudaMemGetInfo"));
     auto cudaGetDeviceProperties = reinterpret_cast<cudaGetDeviceProperties_t>(getSymbol(lib, "cudaGetDeviceProperties"));
 
-    if (!cudaGetDeviceCount || !cudaSetDevice || !cudaMemGetInfo) {
+    if (!cudaMemGetInfo) {
         std::cerr << "Failed to resolve required CUDA runtime symbols.\n";
-        closeLibrary(lib);
-        return 0;
-    }
-
-    int device_count = 0;
-    if (cudaGetDeviceCount(&device_count) != 0 || device_count == 0) {
-        std::cerr << "Failed to query CUDA devices.\n";
-        closeLibrary(lib);
-        return 0;
-    }
-
-    if (cudaSetDevice(0) != 0) {
-        std::cerr << "Failed to set CUDA device 0.\n";
         closeLibrary(lib);
         return 0;
     }
@@ -344,12 +327,20 @@ bool Utils::is_cuda_available() {
     }
 
     typedef int (*cudaGetDeviceCount_t)(int*);
+    typedef int (*cudaSetDevice_t)(int);
+    typedef int (*cudaMemGetInfo_t)(size_t*, size_t*);
+
     auto cudaGetDeviceCount = reinterpret_cast<cudaGetDeviceCount_t>(
-                                    getSymbol(handle, "cudaGetDeviceCount"));
+        getSymbol(handle, "cudaGetDeviceCount"));
+    auto cudaSetDevice = reinterpret_cast<cudaSetDevice_t>(
+        getSymbol(handle, "cudaSetDevice"));
+    auto cudaMemGetInfo = reinterpret_cast<cudaMemGetInfo_t>(
+        getSymbol(handle, "cudaMemGetInfo"));
+
     std::cerr << "[CUDA] Lookup cudaGetDeviceCount symbol: " << (
         cudaGetDeviceCount ? "Found" : "Not Found") << std::endl;
 
-    if (!cudaGetDeviceCount) {
+    if (!cudaGetDeviceCount || !cudaSetDevice || !cudaMemGetInfo) {
         closeLibrary(handle);
         return false;
     }
@@ -365,6 +356,22 @@ bool Utils::is_cuda_available() {
     }
     if (count == 0) {
         std::cerr << "[CUDA] No CUDA devices found\n";
+        closeLibrary(handle);
+        return false;
+    }
+
+    int set_status = cudaSetDevice(0);
+    if (set_status != 0) {
+        std::cerr << "[CUDA] Failed to set CUDA device 0 (error " << set_status << ")\n";
+        closeLibrary(handle);
+        return false;
+    }
+
+    size_t free_bytes = 0;
+    size_t total_bytes = 0;
+    int mem_status = cudaMemGetInfo(&free_bytes, &total_bytes);
+    if (mem_status != 0) {
+        std::cerr << "[CUDA] cudaMemGetInfo failed (error " << mem_status << ")\n";
         closeLibrary(handle);
         return false;
     }
