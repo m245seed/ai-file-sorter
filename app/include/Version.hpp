@@ -7,7 +7,7 @@
 
 
 class Version {
-public:
+ public:
     explicit Version(std::initializer_list<int> version_digits);
     explicit Version(const std::vector<int>& version_digits);
     bool operator>=(const Version& other) const;
@@ -15,7 +15,7 @@ public:
     std::string to_string() const;
     bool operator>(const Version &other) const;
 
-private:
+ private:
     std::vector<int> digits;
 };
 
