@@ -1,6 +1,8 @@
 #include "MovableCategorizedFile.hpp"
 #include "Utils.hpp"
+#include "Logger.hpp"
 #include <filesystem>
+#include <cstdio>
 #include <gtk/gtk.h>
 
 
@@ -14,7 +16,10 @@ MovableCategorizedFile::MovableCategorizedFile(
       subcategory(subcat)
 {
     if (dir_path.empty() || category.empty() || subcategory.empty() || file_name.empty()) {
-        g_print("Error: One or more path components are empty.\n");
+        if (auto logger = Logger::get_logger("core_logger")) {
+            logger->error("Invalid path components while constructing MovableCategorizedFile (dir='{}', category='{}', subcategory='{}', file='{}')",
+                          dir_path, category, subcategory, file_name);
+        }
         throw std::runtime_error("Invalid path component in CategorizedFile constructor.");
     }
 
@@ -34,7 +39,9 @@ void MovableCategorizedFile::create_cat_dirs(bool use_subcategory)
             std::filesystem::create_directory(subcategory_path);
         }
     } catch (const std::filesystem::filesystem_error& e) {
-        g_print("Error creating directories: %s\n", e.what());
+        if (auto logger = Logger::get_logger("core_logger")) {
+            logger->error("Failed to create directories for '{}': {}", file_name, e.what());
+        }
         throw;
     }
 }
@@ -52,23 +59,29 @@ bool MovableCategorizedFile::move_file(bool use_subcategory)
     std::filesystem::path source_path = std::filesystem::path(dir_path) / file_name;
 
     if (!std::filesystem::exists(source_path)) {
-        g_print("Error: Source file does not exist: %s\n", Utils::to_cstr(source_path.u8string()));
+        if (auto logger = Logger::get_logger("core_logger")) {
+            logger->warn("Source file missing when moving '{}': {}", file_name, source_path.string());
+        }
         return false;
     }
 
     if (!std::filesystem::exists(destination_path)) {
         try {
             std::filesystem::rename(source_path, destination_path);
-            g_print("File %s moved to %s\n", Utils::to_cstr(source_path.u8string()),
-                                             Utils::to_cstr(destination_path.u8string()));
+            if (auto logger = Logger::get_logger("core_logger")) {
+                logger->info("Moved '{}' to '{}'", source_path.string(), destination_path.string());
+            }
             return true;
         } catch (const std::filesystem::filesystem_error& e) {
-            g_print("Error moving file: %s\n", e.what());
+            if (auto logger = Logger::get_logger("core_logger")) {
+                logger->error("Failed to move '{}' to '{}': {}", source_path.string(), destination_path.string(), e.what());
+            }
             return false;
         }
     } else {
-        g_print("File %s already exists in %s\n", Utils::to_cstr(source_path.u8string()),
-                                                  Utils::to_cstr(destination_path.u8string()));
+        if (auto logger = Logger::get_logger("core_logger")) {
+            logger->info("Destination already contains '{}'; skipping move", destination_path.string());
+        }
         return false;
     }
 }

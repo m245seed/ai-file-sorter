@@ -384,7 +384,6 @@ void MainApp::perform_analysis()
         }, this);
     } catch (const std::exception& ex) {
         DialogUtils::show_error_dialog(GTK_WINDOW(this->main_window), "Analysis Error: " + std::string(ex.what()));
-        g_printerr("Exception during analysis: %s\n", ex.what());
         core_logger->error("Exception during analysis: {}", ex.what());
     }
 }
@@ -514,7 +513,7 @@ std::vector<CategorizedFile> MainApp::compute_files_to_sort()
 std::string MainApp::get_folder_path()
 {
     if (!GTK_IS_ENTRY(path_entry)) {
-        g_print("Error: Path entry not found or invalid.\n");
+        core_logger->error("Path entry widget is missing or invalid.");
         return "";
     }
 
@@ -707,7 +706,6 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
         } catch (const std::exception& ex) {
             std::string err_msg = fmt::format("[CRYPTO] {} ({})", item_name, ex.what());
             report_progress(err_msg);
-            g_printerr("%s\n", err_msg.c_str());
             core_logger->error("{}", err_msg);
             return DatabaseManager::ResolvedCategory{-1, "", ""};
         }
@@ -727,7 +725,6 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
         } catch (const std::exception& ex) {
             std::string timeout_message = fmt::format("[TIMEOUT] {} ({})", item_name, ex.what());
             report_progress(timeout_message);
-            g_printerr("%s\n", timeout_message.c_str());
             core_logger->warn("Categorization timeout/error for '{}': {}", item_name, ex.what());
             return DatabaseManager::ResolvedCategory{-1, "", ""};
         }
@@ -749,7 +746,6 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
     } catch (const std::exception& ex) {
         std::string err_msg = fmt::format("[LLM-ERROR] {} ({})", item_name, ex.what());
         report_progress(err_msg);
-        g_printerr("%s\n", err_msg.c_str());
         core_logger->error("LLM error while categorizing '{}': {}", item_name, ex.what());
         throw;
     }
@@ -968,13 +964,13 @@ void MainApp::on_donate_activate()
     #elif __APPLE__
         const std::string command = "open " + donation_url;
     #else
-        g_printerr("Unsupported platform for opening URLs\n");
+        core_logger->warn("Unsupported platform for opening URLs");
         return;
     #endif
 
     int result = std::system(command.c_str());
     if (result != 0) {
-        g_printerr("Failed to open the donation URL: %s\n", donation_url.c_str());
+        core_logger->error("Failed to open the donation URL: {}", donation_url);
     }
 }
 

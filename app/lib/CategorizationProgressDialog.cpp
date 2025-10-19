@@ -1,5 +1,6 @@
 #include "CategorizationProgressDialog.hpp"
 #include "MainApp.hpp"
+#include "Logger.hpp"
 #include <gtk/gtk.h>
 #include <gtk/gtktypes.h>
 #include <gobject/gsignal.h>
@@ -105,7 +106,9 @@ void CategorizationProgressDialog::show()
 void CategorizationProgressDialog::append_text(const std::string& text)
 {
     if (!m_TextView) {
-        g_printerr("Error: text_view is not initialized!\n");
+        if (auto logger = Logger::get_logger("core_logger")) {
+            logger->error("CategorizationProgressDialog text view not initialized");
+        }
         return;
     }
 
