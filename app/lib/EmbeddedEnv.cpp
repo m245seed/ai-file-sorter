@@ -17,14 +17,14 @@ EmbeddedEnv::EmbeddedEnv(const std::string& resource_path)
 void EmbeddedEnv::load_env() {
     auto logger = Logger::get_logger("core_logger");
     if (logger) {
-        logger->debug("Loading embedded environment from {}", resource_path_);
+        // logger->debug("Loading embedded environment from {}", resource_path_);
     }
 
     std::string env_content = extract_env_content();
     parse_env(env_content);
 
     if (logger) {
-        logger->info("Embedded environment loaded from {}", resource_path_);
+        // logger->info("Embedded environment loaded from {}", resource_path_);
     }
 }
 
