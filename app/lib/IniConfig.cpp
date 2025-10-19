@@ -3,11 +3,12 @@
 #include <cstdio>
 #include <iostream>
 #include <spdlog/spdlog.h>
+#include <spdlog/fmt/fmt.h>
 
 namespace {
 template <typename... Args>
 void ini_log(spdlog::level::level_enum level, const char* fmt, Args&&... args) {
-    auto message = spdlog::fmt_lib::format(fmt, std::forward<Args>(args)...);
+    auto message = fmt::vformat(fmt, fmt::make_format_args(std::forward<Args>(args)...));
     if (auto logger = Logger::get_logger("core_logger")) {
         logger->log(level, "{}", message);
     } else {

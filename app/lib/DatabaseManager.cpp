@@ -14,13 +14,14 @@
 #include <glib.h>
 #include <sqlite3.h>
 #include <spdlog/spdlog.h>
+#include <spdlog/fmt/fmt.h>
 
 namespace {
 constexpr double kSimilarityThreshold = 0.85;
 
 template <typename... Args>
 void db_log(spdlog::level::level_enum level, const char* fmt, Args&&... args) {
-    auto message = spdlog::fmt_lib::format(fmt, std::forward<Args>(args)...);
+    auto message = fmt::vformat(fmt, fmt::make_format_args(std::forward<Args>(args)...));
     if (auto logger = Logger::get_logger("core_logger")) {
         logger->log(level, "{}", message);
     } else {
@@ -41,12 +42,12 @@ bool is_duplicate_column_error(const char *error_msg) {
 } // namespace
 
 DatabaseManager::DatabaseManager(std::string config_dir)
-    : config_dir(std::move(config_dir)),
+    : db(nullptr),
+      config_dir(std::move(config_dir)),
       db_file(this->config_dir + "/" +
               (std::getenv("CATEGORIZATION_CACHE_FILE")
                    ? std::getenv("CATEGORIZATION_CACHE_FILE")
-                   : "categorization_results.db")),
-      db(nullptr) {
+                   : "categorization_results.db")) {
     if (db_file.empty()) {
         db_log(spdlog::level::err, "Error: Database path is empty");
         return;

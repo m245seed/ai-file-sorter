@@ -10,11 +10,12 @@
 #include <vector>
 #include <glibmm/fileutils.h>
 #include <spdlog/spdlog.h>
+#include <spdlog/fmt/fmt.h>
 
 namespace {
 template <typename... Args>
 void log_core(spdlog::level::level_enum level, const char* fmt, Args&&... args) {
-    auto message = spdlog::fmt_lib::format(fmt, std::forward<Args>(args)...);
+    auto message = fmt::vformat(fmt, fmt::make_format_args(std::forward<Args>(args)...));
     if (auto logger = Logger::get_logger("core_logger")) {
         logger->log(level, "{}", message);
     } else {
