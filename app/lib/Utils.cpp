@@ -1,12 +1,27 @@
 #include "Utils.hpp"
+#include "Logger.hpp"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>  // for memset
 #include <filesystem>
+#include <iostream>
 #include <stdlib.h>
 #include <string>
 #include <vector>
 #include <glibmm/fileutils.h>
+#include <spdlog/spdlog.h>
+
+namespace {
+template <typename... Args>
+void log_core(spdlog::level::level_enum level, const char* fmt, Args&&... args) {
+    auto message = spdlog::fmt_lib::format(fmt, std::forward<Args>(args)...);
+    if (auto logger = Logger::get_logger("core_logger")) {
+        logger->log(level, "{}", message);
+    } else {
+        std::fprintf(stderr, "%s\n", message.c_str());
+    }
+}
+}
 #ifdef _WIN32
     #include <windows.h>
     #include <wininet.h>
@@ -133,7 +148,7 @@ void Utils::ensure_directory_exists(const std::string &dir)
             std::filesystem::create_directories(dir);
         }
     } catch (const std::exception &e) {
-        std::cerr << "Error creating log directory: " << e.what() << std::endl;
+        log_core(spdlog::level::err, "Error creating log directory: {}", e.what());
         throw;
     }
 }
@@ -202,7 +217,7 @@ int Utils::determine_ngl_cuda() {
 #endif
 
     if (!lib) {
-        std::cerr << "Failed to load CUDA runtime library.\n";
+        log_core(spdlog::level::err, "Failed to load CUDA runtime library.");
         return 0;
     }
 
@@ -213,7 +228,7 @@ int Utils::determine_ngl_cuda() {
     auto cudaGetDeviceProperties = reinterpret_cast<cudaGetDeviceProperties_t>(getSymbol(lib, "cudaGetDeviceProperties"));
 
     if (!cudaMemGetInfo) {
-        std::cerr << "Failed to resolve required CUDA runtime symbols.\n";
+        log_core(spdlog::level::err, "Failed to resolve required CUDA runtime symbols.");
         closeLibrary(lib);
         return 0;
     }
@@ -222,7 +237,7 @@ int Utils::determine_ngl_cuda() {
     size_t total_bytes = 0;
 
     if (cudaMemGetInfo(&free_bytes, &total_bytes) != 0) {
-        std::cerr << "Warning: cudaMemGetInfo failed\n";
+        log_core(spdlog::level::warn, "Warning: cudaMemGetInfo failed");
         free_bytes = 0;
         total_bytes = 0;
     }
@@ -305,24 +320,24 @@ std::string Utils::make_default_path_to_file_from_download_url(std::string url)
 
 
 bool Utils::is_cuda_available() {
-    std::cerr << "[CUDA] Checking CUDA availability..." << std::endl;
+    log_core(spdlog::level::info, "[CUDA] Checking CUDA availability...");
 
 #ifdef _WIN32
     std::string dllName = get_cudart_dll_name();
 
     if (dllName.empty()) {
-        std::cerr << "[CUDA] DLL name is empty — likely failed to get CUDA version." << std::endl;
+        log_core(spdlog::level::warn, "[CUDA] DLL name is empty — likely failed to get CUDA version.");
         return false;
     }
 
     LibraryHandle handle = loadLibrary(dllName.c_str());
-    std::cerr << "[CUDA] Trying to load: " << dllName << " => " << (handle ? "Success" : "Failure") << std::endl;
+    log_core(spdlog::level::info, "[CUDA] Trying to load: {} => {}", dllName, handle ? "Success" : "Failure");
 #else
     LibraryHandle handle = loadLibrary("libcudart.so");
 #endif
 
     if (!handle) {
-        std::cerr << "[CUDA] Failed to load CUDA runtime library." << std::endl;
+        log_core(spdlog::level::warn, "[CUDA] Failed to load CUDA runtime library.");
         return false;
     }
 
@@ -337,8 +352,8 @@ bool Utils::is_cuda_available() {
     auto cudaMemGetInfo = reinterpret_cast<cudaMemGetInfo_t>(
         getSymbol(handle, "cudaMemGetInfo"));
 
-    std::cerr << "[CUDA] Lookup cudaGetDeviceCount symbol: " << (
-        cudaGetDeviceCount ? "Found" : "Not Found") << std::endl;
+    log_core(spdlog::level::info, "[CUDA] Lookup cudaGetDeviceCount symbol: {}",
+             cudaGetDeviceCount ? "Found" : "Not Found");
 
     if (!cudaGetDeviceCount || !cudaSetDevice || !cudaMemGetInfo) {
         closeLibrary(handle);
@@ -347,22 +362,22 @@ bool Utils::is_cuda_available() {
 
     int count = 0;
     int status = cudaGetDeviceCount(&count);
-    std::cerr << "[CUDA] cudaGetDeviceCount returned status: " << status << ", device count: " << count << std::endl;
+    log_core(spdlog::level::info, "[CUDA] cudaGetDeviceCount returned status: {}, device count: {}", status, count);
 
     if (status != 0) {
-        std::cerr << "[CUDA] CUDA error: " << status << " from cudaGetDeviceCount\n";
+        log_core(spdlog::level::warn, "[CUDA] CUDA error: {} from cudaGetDeviceCount", status);
         closeLibrary(handle);
         return false;
     }
     if (count == 0) {
-        std::cerr << "[CUDA] No CUDA devices found\n";
+        log_core(spdlog::level::warn, "[CUDA] No CUDA devices found");
         closeLibrary(handle);
         return false;
     }
 
     int set_status = cudaSetDevice(0);
     if (set_status != 0) {
-        std::cerr << "[CUDA] Failed to set CUDA device 0 (error " << set_status << ")\n";
+        log_core(spdlog::level::warn, "[CUDA] Failed to set CUDA device 0 (error {})", set_status);
         closeLibrary(handle);
         return false;
     }
@@ -371,12 +386,12 @@ bool Utils::is_cuda_available() {
     size_t total_bytes = 0;
     int mem_status = cudaMemGetInfo(&free_bytes, &total_bytes);
     if (mem_status != 0) {
-        std::cerr << "[CUDA] cudaMemGetInfo failed (error " << mem_status << ")\n";
+        log_core(spdlog::level::warn, "[CUDA] cudaMemGetInfo failed (error {})", mem_status);
         closeLibrary(handle);
         return false;
     }
 
-    std::cerr << "[CUDA] CUDA is available and " << count << " device(s) found." << std::endl;
+    log_core(spdlog::level::info, "[CUDA] CUDA is available and {} device(s) found.", count);
     closeLibrary(handle);
     return true;
 }
@@ -387,7 +402,7 @@ int Utils::get_installed_cuda_runtime_version()
 {
     HMODULE hCuda = LoadLibraryA("nvcuda.dll");
     if (!hCuda) {
-        std::cerr << "Failed to load nvcuda.dll\n";
+        log_core(spdlog::level::warn, "Failed to load nvcuda.dll");
         return 0;
     }
 
@@ -397,19 +412,19 @@ int Utils::get_installed_cuda_runtime_version()
     );
 
     if (!cudaDriverGetVersion) {
-        std::cerr << "Failed to get cuDriverGetVersion symbol\n";
+        log_core(spdlog::level::warn, "Failed to get cuDriverGetVersion symbol");
         FreeLibrary(hCuda);
         return 0;
     }
 
     int version = 0;
     if (cudaDriverGetVersion(&version) != 0) {
-        std::cerr << "cuDriverGetVersion call failed\n";
+        log_core(spdlog::level::warn, "cuDriverGetVersion call failed");
         FreeLibrary(hCuda);
         return 0;
     }
 
-    std::cerr << "[CUDA] Detected CUDA driver version: " << version << std::endl;
+    log_core(spdlog::level::info, "[CUDA] Detected CUDA driver version: {}", version);
 
     FreeLibrary(hCuda);
     return version;
@@ -442,12 +457,12 @@ std::string Utils::get_cudart_dll_name() {
         HMODULE h = LoadLibraryA(buffer);
         if (h) {
             FreeLibrary(h);
-            std::cerr << "[CUDA] Selected runtime DLL: " << buffer << std::endl;
+            log_core(spdlog::level::info, "[CUDA] Selected runtime DLL: {}", buffer);
             return buffer;
         }
     }
 
-    std::cerr << "[CUDA] Unable to locate a compatible cudart64_XX.dll" << std::endl;
+    log_core(spdlog::level::warn, "[CUDA] Unable to locate a compatible cudart64_XX.dll");
     return "";
 }
 #endif

@@ -1,11 +1,26 @@
 #include "IniConfig.hpp"
+#include "Logger.hpp"
+#include <cstdio>
 #include <iostream>
+#include <spdlog/spdlog.h>
+
+namespace {
+template <typename... Args>
+void ini_log(spdlog::level::level_enum level, const char* fmt, Args&&... args) {
+    auto message = spdlog::fmt_lib::format(fmt, std::forward<Args>(args)...);
+    if (auto logger = Logger::get_logger("core_logger")) {
+        logger->log(level, "{}", message);
+    } else {
+        std::fprintf(stderr, "%s\n", message.c_str());
+    }
+}
+}
 
 
 bool IniConfig::load(const std::string &filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
-        std::cerr << "Failed to open config file: " << filename << std::endl;
+        ini_log(spdlog::level::err, "Failed to open config file: {}", filename);
         return false;
     }
 
@@ -59,7 +74,7 @@ bool IniConfig::save(const std::string &filename) const
     std::ofstream file(filename);
     
     if (!file.is_open()) {
-        std::cerr << "Failed to open config file: " << filename << std::endl;
+        ini_log(spdlog::level::err, "Failed to open config file: {}", filename);
         return false;
     }
 

@@ -1,6 +1,8 @@
 #include "Updater.hpp"
+#include "Logger.hpp"
 #include "app_version.hpp"
 #include <curl/curl.h>
+#include <cstdio>
 #include <iostream>
 #include <stdexcept>
 #ifdef _WIN32
@@ -16,6 +18,19 @@
 #include <curl/easy.h>
 #include <glibmm/main.h>
 #include <future>
+#include <spdlog/spdlog.h>
+
+namespace {
+template <typename... Args>
+void updater_log(spdlog::level::level_enum level, const char* fmt, Args&&... args) {
+    auto message = spdlog::fmt_lib::format(fmt, std::forward<Args>(args)...);
+    if (auto logger = Logger::get_logger("core_logger")) {
+        logger->log(level, "{}", message);
+    } else {
+        std::fprintf(stderr, "%s\n", message.c_str());
+    }
+}
+}
 
 
 Updater::Updater(Settings& settings) 
@@ -105,8 +120,8 @@ void Updater::begin()
                 });
             }
         } catch (const std::exception &e) {
-            Glib::signal_idle().connect_once([e]() {
-                std::cerr << "Updater encountered an error: " << e.what() << "\n";
+            Glib::signal_idle().connect_once([msg = std::string(e.what())]() {
+                updater_log(spdlog::level::err, "Updater encountered an error: {}", msg);
             });
         }
     });
@@ -125,7 +140,7 @@ void Updater::display_update_dialog(bool is_required) {
     GtkWidget* content_area;
 
     if (!update_info) {
-        std::cerr << "No update information available.\n";
+        updater_log(spdlog::level::warn, "No update information available.");
         return;
     }
 
@@ -191,13 +206,13 @@ void Updater::display_update_dialog(bool is_required) {
             #elif __APPLE__
                 command = "open " + update_info.value().download_url;
             #else
-                std::cerr << "Unsupported platform for opening URLs.\n";
+                updater_log(spdlog::level::warn, "Unsupported platform for opening URLs.");
                 return;
             #endif
 
             int result = std::system(command.c_str());
             if (result != 0) {
-                std::cerr << "Failed to open URL: " << update_info.value().download_url << std::endl;
+                updater_log(spdlog::level::err, "Failed to open URL: {}", update_info.value().download_url);
             } else {
                 std::cout << "Opening download URL: " << update_info.value().download_url << std::endl;
             }
@@ -227,7 +242,7 @@ void Updater::display_update_dialog(bool is_required) {
                 std::string skipped_version = update_info.value().current_version;
                 settings.set_skipped_version(skipped_version);
                 if (!settings.save()) {
-                    std::cerr << "Failed to save skipped version to settings." << std::endl;
+                    updater_log(spdlog::level::err, "Failed to save skipped version to settings.");
                 } else {
                     std::cout << "User chose to skip version " << skipped_version << "." << std::endl;
                 }

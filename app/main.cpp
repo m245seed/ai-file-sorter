@@ -7,6 +7,7 @@
 #include <locale.h>
 #include <libintl.h>
 #include <iostream>
+#include <cstdio>
 #include <curl/curl.h>
 
 #ifdef __linux__
@@ -22,7 +23,11 @@ bool initialize_loggers()
         Logger::setup_loggers();
         return true;
     } catch (const std::exception &e) {
-        std::cerr << "Failed to initialize loggers: " << e.what() << std::endl;
+        if (auto logger = Logger::get_logger("core_logger")) {
+            logger->critical("Failed to initialize loggers: {}", e.what());
+        } else {
+            std::fprintf(stderr, "Failed to initialize loggers: %s\n", e.what());
+        }
         return false;
     }
 }

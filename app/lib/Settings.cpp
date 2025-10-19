@@ -1,12 +1,28 @@
 #include "Settings.hpp"
 #include "Types.hpp"
+#include "Logger.hpp"
 #include <filesystem>
+#include <cstdio>
 #include <iostream>
 #include <glib.h>
+#include <spdlog/spdlog.h>
 #ifdef _WIN32
     #include <shlobj.h>
     #include <windows.h>
 #endif
+
+
+namespace {
+template <typename... Args>
+void settings_log(spdlog::level::level_enum level, const char* fmt, Args&&... args) {
+    auto message = spdlog::fmt_lib::format(fmt, std::forward<Args>(args)...);
+    if (auto logger = Logger::get_logger("core_logger")) {
+        logger->log(level, "{}", message);
+    } else {
+        std::fprintf(stderr, "%s\n", message.c_str());
+    }
+}
+}
 
 
 Settings::Settings()
@@ -26,7 +42,7 @@ Settings::Settings()
             std::filesystem::create_directories(config_dir);
         }
     } catch (const std::filesystem::filesystem_error &e) {
-        std::cerr << "Error creating configuration directory: " << e.what() << std::endl;
+        settings_log(spdlog::level::err, "Error creating configuration directory: {}", e.what());
     }
     this->default_sort_folder = g_get_user_special_dir(G_USER_DIRECTORY_DOWNLOAD);
     if (!this->default_sort_folder) {

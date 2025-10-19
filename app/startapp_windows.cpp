@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <iostream>
 #include <cstdlib>
 #include <shlobj.h>
@@ -72,7 +73,7 @@ void addToPath(const std::string& directory) {
 
     getenv_s(&requiredSize, nullptr, 0, "PATH");
     if (requiredSize == 0) {
-        std::cerr << "Failed to retrieve PATH environment variable." << std::endl;
+        std::fprintf(stderr, "Failed to retrieve PATH environment variable.\n");
         return;
     }
 
@@ -84,7 +85,7 @@ void addToPath(const std::string& directory) {
 
     // Update PATH in the current process
     if (_putenv_s("PATH", newPath.c_str()) != 0) {
-        std::cerr << "Failed to set PATH environment variable." << std::endl;
+        std::fprintf(stderr, "Failed to set PATH environment variable.\n");
     } else {
         std::cout << "Updated PATH: " << newPath << std::endl;
     }
@@ -137,7 +138,7 @@ void showCudaDownloadDialog(GtkWindow* parent = nullptr) {
 void launchMainApp() {
     std::string exePath = "AI File Sorter.exe";
     if (WinExec(exePath.c_str(), SW_SHOW) < 32) {
-        std::cerr << "Failed to launch the application." << std::endl;
+        std::fprintf(stderr, "Failed to launch the application.\n");
     }
 }
 
@@ -148,7 +149,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     std::string exeDir = getExecutableDirectory();
 
     if (!SetCurrentDirectoryA(exeDir.c_str())) {
-        std::cerr << "Failed to set current directory: " << exeDir << std::endl;
+        std::fprintf(stderr, "Failed to set current directory: %s\n", exeDir.c_str());
         return EXIT_FAILURE;
     }
 

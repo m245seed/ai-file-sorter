@@ -1,11 +1,11 @@
 #include <iostream>
+#include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
 #include <limits.h>
 #include <string>
 #include <sys/stat.h>
 #include <vector>
-
 
 std::string getExecutableDirectory() {
     char result[PATH_MAX];
@@ -43,7 +43,7 @@ void launchMainApp(const std::string& exeDir, const std::string& libPath) {
     std::string exePath = exeDir + "/bin/aifilesorter";
 
     if (access(exePath.c_str(), X_OK) != 0) {
-        std::cerr << "App is not executable: " << exePath << std::endl;
+        std::fprintf(stderr, "App is not executable: %s\n", exePath.c_str());
         perror("access");
         exit(EXIT_FAILURE);
     }
@@ -79,6 +79,7 @@ void launchMainApp(const std::string& exeDir, const std::string& libPath) {
 
     execve(exePath.c_str(), const_cast<char* const*>(argv), envp.data());
 
+    std::fprintf(stderr, "execve failed\n");
     perror("execve failed");
     exit(EXIT_FAILURE);
 }

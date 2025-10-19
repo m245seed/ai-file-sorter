@@ -1,9 +1,11 @@
 #include "DatabaseManager.hpp"
 #include "Types.hpp"
+#include "Logger.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <iostream>
 #include <sstream>
 #include <utility>
@@ -11,9 +13,20 @@
 
 #include <glib.h>
 #include <sqlite3.h>
+#include <spdlog/spdlog.h>
 
 namespace {
 constexpr double kSimilarityThreshold = 0.85;
+
+template <typename... Args>
+void db_log(spdlog::level::level_enum level, const char* fmt, Args&&... args) {
+    auto message = spdlog::fmt_lib::format(fmt, std::forward<Args>(args)...);
+    if (auto logger = Logger::get_logger("core_logger")) {
+        logger->log(level, "{}", message);
+    } else {
+        std::fprintf(stderr, "%s\n", message.c_str());
+    }
+}
 
 bool is_duplicate_column_error(const char *error_msg) {
     if (!error_msg) {
@@ -35,12 +48,12 @@ DatabaseManager::DatabaseManager(std::string config_dir)
                    : "categorization_results.db")),
       db(nullptr) {
     if (db_file.empty()) {
-        std::cerr << "Error: Database path is empty" << std::endl;
+        db_log(spdlog::level::err, "Error: Database path is empty");
         return;
     }
 
     if (sqlite3_open(db_file.c_str(), &db) != SQLITE_OK) {
-        std::cerr << "Can't open database: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "Can't open database: {}", sqlite3_errmsg(db));
         db = nullptr;
         return;
     }
@@ -78,14 +91,14 @@ void DatabaseManager::initialize_schema() {
 
     char *error_msg = nullptr;
     if (sqlite3_exec(db, create_table_sql, nullptr, nullptr, &error_msg) != SQLITE_OK) {
-        std::cerr << "Failed to create file_categorization table: " << error_msg << std::endl;
+        db_log(spdlog::level::err, "Failed to create file_categorization table: {}", error_msg);
         sqlite3_free(error_msg);
     }
 
     const char *add_column_sql = "ALTER TABLE file_categorization ADD COLUMN taxonomy_id INTEGER;";
     if (sqlite3_exec(db, add_column_sql, nullptr, nullptr, &error_msg) != SQLITE_OK) {
         if (!is_duplicate_column_error(error_msg)) {
-            std::cerr << "Failed to add taxonomy_id column: " << (error_msg ? error_msg : "") << std::endl;
+            db_log(spdlog::level::warn, "Failed to add taxonomy_id column: {}", error_msg ? error_msg : "");
         }
         if (error_msg) {
             sqlite3_free(error_msg);
@@ -95,7 +108,7 @@ void DatabaseManager::initialize_schema() {
     const char *create_index_sql =
         "CREATE INDEX IF NOT EXISTS idx_file_categorization_taxonomy ON file_categorization(taxonomy_id);";
     if (sqlite3_exec(db, create_index_sql, nullptr, nullptr, &error_msg) != SQLITE_OK) {
-        std::cerr << "Failed to create taxonomy index: " << error_msg << std::endl;
+        db_log(spdlog::level::err, "Failed to create taxonomy index: {}", error_msg);
         sqlite3_free(error_msg);
     }
 }
@@ -117,7 +130,7 @@ void DatabaseManager::initialize_taxonomy_schema() {
 
     char *error_msg = nullptr;
     if (sqlite3_exec(db, taxonomy_sql, nullptr, nullptr, &error_msg) != SQLITE_OK) {
-        std::cerr << "Failed to create category_taxonomy table: " << error_msg << std::endl;
+        db_log(spdlog::level::err, "Failed to create category_taxonomy table: {}", error_msg);
         sqlite3_free(error_msg);
     }
 
@@ -131,14 +144,14 @@ void DatabaseManager::initialize_taxonomy_schema() {
         );
     )";
     if (sqlite3_exec(db, alias_sql, nullptr, nullptr, &error_msg) != SQLITE_OK) {
-        std::cerr << "Failed to create category_alias table: " << error_msg << std::endl;
+        db_log(spdlog::level::err, "Failed to create category_alias table: {}", error_msg);
         sqlite3_free(error_msg);
     }
 
     const char *alias_index_sql =
         "CREATE INDEX IF NOT EXISTS idx_category_alias_taxonomy ON category_alias(taxonomy_id);";
     if (sqlite3_exec(db, alias_index_sql, nullptr, nullptr, &error_msg) != SQLITE_OK) {
-        std::cerr << "Failed to create alias index: " << error_msg << std::endl;
+        db_log(spdlog::level::err, "Failed to create alias index: {}", error_msg);
         sqlite3_free(error_msg);
     }
 }
@@ -171,7 +184,7 @@ void DatabaseManager::load_taxonomy_cache() {
             canonical_lookup[make_key(entry.normalized_category, entry.normalized_subcategory)] = entry.id;
         }
     } else {
-        std::cerr << "Failed to load taxonomy cache: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "Failed to load taxonomy cache: {}", sqlite3_errmsg(db));
     }
     if (stmt) sqlite3_finalize(stmt);
 
@@ -186,7 +199,7 @@ void DatabaseManager::load_taxonomy_cache() {
             alias_lookup[make_key(alias_cat, alias_subcat)] = taxonomy_id;
         }
     } else {
-        std::cerr << "Failed to load category aliases: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "Failed to load category aliases: {}", sqlite3_errmsg(db));
     }
     if (stmt) sqlite3_finalize(stmt);
 }
@@ -267,7 +280,7 @@ int DatabaseManager::create_taxonomy_entry(const std::string &category,
 
     sqlite3_stmt *stmt = nullptr;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "Failed to prepare taxonomy insert: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "Failed to prepare taxonomy insert: {}", sqlite3_errmsg(db));
         return -1;
     }
 
@@ -302,7 +315,7 @@ int DatabaseManager::create_taxonomy_entry(const std::string &category,
             return -1;
         }
 
-        std::cerr << "Failed to insert taxonomy entry: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "Failed to insert taxonomy entry: {}", sqlite3_errmsg(db));
         return -1;
     }
 
@@ -341,7 +354,7 @@ void DatabaseManager::ensure_alias_mapping(int taxonomy_id,
 
     sqlite3_stmt *stmt = nullptr;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "Failed to prepare alias insert: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "Failed to prepare alias insert: {}", sqlite3_errmsg(db));
         return;
     }
 
@@ -350,7 +363,7 @@ void DatabaseManager::ensure_alias_mapping(int taxonomy_id,
     sqlite3_bind_int(stmt, 3, taxonomy_id);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
-        std::cerr << "Failed to insert alias: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "Failed to insert alias: {}", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         return;
     }
@@ -478,7 +491,7 @@ bool DatabaseManager::insert_or_update_file_with_categorization(
 
     sqlite3_stmt *stmt = nullptr;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "SQL prepare error: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "SQL prepare error: {}", sqlite3_errmsg(db));
         return false;
     }
 
@@ -496,7 +509,7 @@ bool DatabaseManager::insert_or_update_file_with_categorization(
 
     bool success = true;
     if (sqlite3_step(stmt) != SQLITE_DONE) {
-        std::cerr << "SQL error during insert/update: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "SQL error during insert/update: {}", sqlite3_errmsg(db));
         success = false;
     }
 
@@ -518,14 +531,14 @@ void DatabaseManager::increment_taxonomy_frequency(int taxonomy_id) {
         "WHERE id = ?;";
     sqlite3_stmt *stmt = nullptr;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "Failed to prepare frequency update: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "Failed to prepare frequency update: {}", sqlite3_errmsg(db));
         return;
     }
 
     sqlite3_bind_int(stmt, 1, taxonomy_id);
     sqlite3_bind_int(stmt, 2, taxonomy_id);
     if (sqlite3_step(stmt) != SQLITE_DONE) {
-        std::cerr << "Failed to increment taxonomy frequency: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "Failed to increment taxonomy frequency: {}", sqlite3_errmsg(db));
     }
     sqlite3_finalize(stmt);
 
@@ -561,7 +574,7 @@ DatabaseManager::get_categorized_files(const std::string &directory_path) {
     }
 
     if (sqlite3_bind_text(stmtcat, 1, directory_path.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK) {
-        std::cerr << "Failed to bind directory_path: " << sqlite3_errmsg(db) << std::endl;
+        db_log(spdlog::level::err, "Failed to bind directory_path: {}", sqlite3_errmsg(db));
         sqlite3_finalize(stmtcat);
         return categorized_files;
     }

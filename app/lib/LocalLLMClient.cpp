@@ -10,6 +10,7 @@
 #include <regex>
 #include <iostream>
 #include <sstream>
+#include <spdlog/spdlog.h>
 #include <cstdlib>
 
 #if defined(_WIN32)
@@ -27,7 +28,12 @@ void silent_logger(enum ggml_log_level, const char *, void *) {}
 
 
 void llama_debug_logger(enum ggml_log_level level, const char *text, void *user_data) {
-    std::cerr << "[llama.cpp] " << text;
+    if (auto logger = Logger::get_logger("core_logger")) {
+        logger->log(level >= GGML_LOG_LEVEL_ERROR ? spdlog::level::err : spdlog::level::debug,
+                    "[llama.cpp] {}", text);
+    } else {
+        std::fprintf(stderr, "[llama.cpp] %s", text);
+    }
 }
 
 
