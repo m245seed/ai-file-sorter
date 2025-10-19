@@ -33,6 +33,7 @@
 #include <thread>
 #include <unordered_set>
 #include <vector>
+#include <fmt/format.h>
 #include <LocalLLMClient.hpp>
 
 extern GResource *resources_get_resource();
@@ -265,7 +266,7 @@ void MainApp::perform_analysis()
 
     g_idle_add([](gpointer user_data) -> gboolean {
         MainApp* app = static_cast<MainApp*>(user_data);
-        app->progress_dialog->append_text("Analyzing contents of " + app->get_folder_path() + "\n");
+        app->progress_dialog->append_text(fmt::format("[SCAN] Exploring {}", app->get_folder_path()));
         return G_SOURCE_REMOVE;
     }, this);
 
@@ -279,7 +280,7 @@ void MainApp::perform_analysis()
         if (!already_categorized_files.empty()) {
             g_idle_add([](gpointer user_data) -> gboolean {
                 MainApp* app = static_cast<MainApp*>(user_data);
-                app->progress_dialog->append_text("\nAlready categorized files:\n");
+                app->progress_dialog->append_text("[ARCHIVE] Already categorized highlights:");
                 return G_SOURCE_REMOVE;
             }, this);
         }
@@ -295,7 +296,10 @@ void MainApp::perform_analysis()
 
             g_idle_add([](gpointer user_data) -> gboolean {
                 auto ctx = std::unique_ptr<AnalysisContext>(static_cast<AnalysisContext*>(user_data));
-                ctx->app->progress_dialog->append_text(ctx->file_name + " [" + ctx->category + "/" + ctx->subcategory + "]\n");
+                const char* symbol = ctx->file_type == FileType::Directory ? "DIR" : "FILE";
+                std::string sub = ctx->subcategory.empty() ? "-" : ctx->subcategory;
+                ctx->app->progress_dialog->append_text(
+                    fmt::format("  - [{}] {} -> {} / {}", symbol, ctx->file_name, ctx->category, sub));
                 return G_SOURCE_REMOVE;
             }, context.release());
         }
@@ -313,13 +317,13 @@ void MainApp::perform_analysis()
         if (!files_to_categorize.empty()) {
             g_idle_add([](gpointer user_data) -> gboolean {
                 MainApp* app = static_cast<MainApp*>(user_data);
-                app->progress_dialog->append_text("\nFiles to categorize:\n");
+                app->progress_dialog->append_text("[QUEUE] Items waiting for categorization:");
                 return G_SOURCE_REMOVE;
             }, this);
         } else {
             g_idle_add([](gpointer user_data) -> gboolean {
                 MainApp* app = static_cast<MainApp*>(user_data);
-                app->progress_dialog->append_text("\nNo files to categorize\n");
+                app->progress_dialog->append_text("[DONE] No files to categorize.");
                 return G_SOURCE_REMOVE;
             }, this);
         }
@@ -335,7 +339,9 @@ void MainApp::perform_analysis()
 
             g_idle_add([](gpointer user_data) -> gboolean {
                 auto* ctx = static_cast<AnalysisContext*>(user_data);
-                ctx->app->progress_dialog->append_text(ctx->file_name + "\n");
+                const char* symbol = ctx->file_type == FileType::Directory ? "DIR" : "FILE";
+                ctx->app->progress_dialog->append_text(
+                    fmt::format("  - [{}] {}", symbol, ctx->file_name));
                 delete ctx;
                 return G_SOURCE_REMOVE;
             }, context);
@@ -347,7 +353,7 @@ void MainApp::perform_analysis()
 
         g_idle_add([](gpointer user_data) -> gboolean {
             MainApp* app = static_cast<MainApp*>(user_data);
-            app->progress_dialog->append_text("\n");
+            app->progress_dialog->append_text("[PROCESS] Letting the AI do its magic...");
             return G_SOURCE_REMOVE;
         }, this);
 
@@ -532,14 +538,21 @@ std::tuple<std::string, std::string> split_category_subcategory(const std::strin
 
 
 void MainApp::report_progress(const std::string& message) {
+    std::string formatted = message;
+    if (!formatted.empty() && formatted.front() == '\n') {
+        formatted.erase(formatted.begin());
+    }
+    if (!formatted.empty() && formatted.back() != '\n') {
+        formatted.push_back('\n');
+    }
     auto progress_data = std::make_unique<
-        std::pair<MainApp*, std::string>>(this, message);
+        std::pair<MainApp*, std::string>>(this, formatted);
     g_idle_add([](gpointer user_data) -> gboolean {
         auto progress_data = std::unique_ptr<std::pair<MainApp*, std::string>>(
             static_cast<std::pair<MainApp*, std::string>*>(user_data));
         if (progress_data->first->progress_dialog) {
             progress_data->first->progress_dialog->append_text(
-                progress_data->second + "\n");
+                progress_data->second);
         }
         return G_SOURCE_REMOVE;
     }, progress_data.release());
@@ -672,11 +685,13 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
         auto resolved = db_manager.resolve_category(category, subcategory);
         core_logger->info("Found in local DB: {} - Category: {}, Subcategory: {}", item_name,
                           resolved.category, resolved.subcategory);
-        std::string message =
-            "\nFound in local DB: " + item_name + " [" + resolved.category + "/" + resolved.subcategory + "]";
-        if (!item_path.empty()) {
-            message += " (" + item_path + ")";
-        }
+
+        std::string sub = resolved.subcategory.empty() ? "-" : resolved.subcategory;
+        std::string path_display = item_path.empty() ? "-" : item_path;
+
+        std::string message = fmt::format(
+            "[CACHE] {}\n    Category : {}\n    Subcat   : {}\n    Path     : {}",
+            item_name, resolved.category, sub, path_display);
         report_progress(message);
         return resolved;
     }
@@ -690,10 +705,10 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
             CryptoManager crypto(env_pc, env_rr);
             key = crypto.reconstruct();
         } catch (const std::exception& ex) {
-            std::string message = "CryptoManager error for \"" + item_name + "\": " + ex.what();
-            report_progress(message);
-            g_printerr("%s\n", message.c_str());
-            core_logger->error("{}", message);
+            std::string err_msg = fmt::format("[CRYPTO] {} ({})", item_name, ex.what());
+            report_progress(err_msg);
+            g_printerr("%s\n", err_msg.c_str());
+            core_logger->error("{}", err_msg);
             return DatabaseManager::ResolvedCategory{-1, "", ""};
         }
     }
@@ -710,10 +725,9 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
                     llm, item_name, item_path, file_type, 10);
             }
         } catch (const std::exception& ex) {
-            std::string message = "LLM Timeout/Error: "
-                + std::string(ex.what());
-            report_progress(message);
-            g_printerr("%s\n", message.c_str());
+            std::string timeout_message = fmt::format("[TIMEOUT] {} ({})", item_name, ex.what());
+            report_progress(timeout_message);
+            g_printerr("%s\n", timeout_message.c_str());
             core_logger->warn("Categorization timeout/error for '{}': {}", item_name, ex.what());
             return DatabaseManager::ResolvedCategory{-1, "", ""};
         }
@@ -723,19 +737,19 @@ MainApp::categorize_file(ILLMClient& llm, const std::string& item_name,
 
         auto resolved = db_manager.resolve_category(category, subcategory);
 
-        std::ostringstream message;
-        message << "Suggested by AI: " << item_name << " [" << resolved.category << "/" << resolved.subcategory << "]";
-        if (!item_path.empty()) {
-            message << " (" << item_path << ")";
-        }
-        report_progress(message.str());
+        std::string sub = resolved.subcategory.empty() ? "-" : resolved.subcategory;
+        std::string path_display = item_path.empty() ? "-" : item_path;
+
+        std::string message = fmt::format(
+            "[AI] {}\n    Category : {}\n    Subcat   : {}\n    Path     : {}",
+            item_name, resolved.category, sub, path_display);
+        report_progress(message);
 
         return resolved;
     } catch (const std::exception& ex) {
-        std::ostringstream message;
-        message << "LLM Error \"" << ex.what();
-        report_progress(message.str());
-        g_printerr("%s\n", message.str().c_str());
+        std::string err_msg = fmt::format("[LLM-ERROR] {} ({})", item_name, ex.what());
+        report_progress(err_msg);
+        g_printerr("%s\n", err_msg.c_str());
         core_logger->error("LLM error while categorizing '{}': {}", item_name, ex.what());
         throw;
     }

@@ -33,7 +33,7 @@ CategorizationProgressDialog::CategorizationProgressDialog(GtkWindow* parent, Ma
                     g_warning("MainApp pointer is null!");
                     return;
                 }
-                std::string message = "\nStopping...\n";
+                std::string message = "[STOP] Cancelling analysis...";
                 app->progress_dialog->append_text(message);
                 app->stop_analysis = true;
             }),
@@ -71,6 +71,8 @@ GtkWidget* CategorizationProgressDialog::create_categorization_progress_dialog(G
     gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(m_TextView), GTK_WRAP_WORD);
     gtk_text_view_set_editable(GTK_TEXT_VIEW(m_TextView), FALSE);
     gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(m_TextView), FALSE);
+    gtk_text_view_set_left_margin(GTK_TEXT_VIEW(m_TextView), 16);
+    gtk_text_view_set_right_margin(GTK_TEXT_VIEW(m_TextView), 16);
 
     gtk_container_add(GTK_CONTAINER(scrolled_window), m_TextView);
 
@@ -107,12 +109,26 @@ void CategorizationProgressDialog::append_text(const std::string& text)
         return;
     }
 
-    gtk_text_buffer_insert_at_cursor(buffer, text.c_str(), -1);
-
-    // Scroll down on text update
     GtkTextIter end_iter;
     gtk_text_buffer_get_end_iter(buffer, &end_iter);
-    gtk_text_view_scroll_to_iter(GTK_TEXT_VIEW(m_TextView), &end_iter, 0.0, FALSE, 0.0, 1.0);
+
+    std::string decorated = text;
+    if (!decorated.empty() && decorated.back() != '\n') {
+        decorated.push_back('\n');
+    }
+
+    gtk_text_buffer_insert(buffer, &end_iter, decorated.c_str(), -1);
+
+    gtk_text_buffer_get_end_iter(buffer, &end_iter);
+    GtkAdjustment *vadj = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(m_TextView));
+    if (vadj) {
+        gdouble upper = gtk_adjustment_get_upper(vadj);
+        gdouble page_size = gtk_adjustment_get_page_size(vadj);
+        gdouble value = upper - page_size;
+        gtk_adjustment_set_value(vadj, value > 0 ? value : 0);
+    } else {
+        gtk_text_view_scroll_to_iter(GTK_TEXT_VIEW(m_TextView), &end_iter, 0.0, FALSE, 0.0, 1.0);
+    }
 }
 
 
