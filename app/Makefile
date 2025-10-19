@@ -149,7 +149,7 @@ else ifeq ($(PLATFORM), Windows (64-bit))
 		libgmodule-2.0-0 libnghttp2-14 libsharpyuv-0 libbrotlicommon libfmt-11 \
 		libgobject-2.0-0 libnghttp3-9 libsigc-2.0-0 zlib1 libbrotlidec libfontconfig-1 \
 		libgraphite2 libopenblas libngtcp2-16 libsqlite3-0 libbz2-1 libfreetype-6 \
-		libgtk-3-0 libngtcp2_crypto_ossl libquadmath-0 libssh2-1 libpixman-1-0, \
+		libgtk-3-0 libngtcp2_crypto_ossl-0 libquadmath-0 libssh2-1 libpixman-1-0, \
 		cp -v "C:/msys64/mingw64/bin/$(dll).dll" $(INSTALL_DIR)/;)
 
 	cp -v "C:/msys64/usr/ssl/cert.pem" $(INSTALL_DIR)/certs/cacert.pem
