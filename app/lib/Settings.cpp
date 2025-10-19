@@ -16,7 +16,7 @@
 namespace {
 template <typename... Args>
 void settings_log(spdlog::level::level_enum level, const char* fmt, Args&&... args) {
-    auto message = fmt::vformat(fmt, fmt::make_format_args(std::forward<Args>(args)...));
+    auto message = fmt::format(fmt::runtime(fmt), std::forward<Args>(args)...);
     if (auto logger = Logger::get_logger("core_logger")) {
         logger->log(level, "{}", message);
     } else {
