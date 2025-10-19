@@ -420,14 +420,35 @@ int Utils::get_installed_cuda_runtime_version()
 #ifdef _WIN32
 std::string Utils::get_cudart_dll_name() {
     int version = get_installed_cuda_runtime_version();
-    if (version == 0) return "";
+    std::vector<int> candidates;
 
-    int major = version / 1000;        // e.g., 13
+    if (version > 0) {
+        int suggested = version / 1000;
+        if (suggested > 0) {
+            candidates.push_back(suggested);
+        }
+    }
 
-    char buffer[32];
-    std::snprintf(buffer, sizeof(buffer), "cudart64_%d.dll", major);
-    std::cerr << "[CUDA] Determined DLL name: " << buffer << std::endl;
-    return buffer; // e.g., "cudart64_13.dll"
+    // probe the most common recent runtimes (highest first)
+    for (int v = 15; v >= 10; --v) {
+        if (std::find(candidates.begin(), candidates.end(), v) == candidates.end()) {
+            candidates.push_back(v);
+        }
+    }
+
+    for (int major : candidates) {
+        char buffer[32];
+        std::snprintf(buffer, sizeof(buffer), "cudart64_%d.dll", major);
+        HMODULE h = LoadLibraryA(buffer);
+        if (h) {
+            FreeLibrary(h);
+            std::cerr << "[CUDA] Selected runtime DLL: " << buffer << std::endl;
+            return buffer;
+        }
+    }
+
+    std::cerr << "[CUDA] Unable to locate a compatible cudart64_XX.dll" << std::endl;
+    return "";
 }
 #endif
 
