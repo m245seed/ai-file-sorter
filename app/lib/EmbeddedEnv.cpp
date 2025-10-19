@@ -88,7 +88,7 @@ void EmbeddedEnv::parse_env(const std::string& env_content) {
 #endif
         ++loaded_entries;
         if (auto logger = Logger::get_logger("core_logger")) {
-            logger->debug("Loaded env key '{}'", key);
+            // logger->debug("Loaded env key '{}'", key);
         }
     }
 
