@@ -42,7 +42,6 @@ private:
         std::string subcategory;
         std::string normalized_category;
         std::string normalized_subcategory;
-        int frequency;
     };
 
     void initialize_schema();
@@ -66,6 +65,8 @@ private:
                               const std::string& subcategory,
                               const std::string& norm_category,
                               const std::string& norm_subcategory);
+    int find_existing_taxonomy_id(const std::string& norm_category,
+                                  const std::string& norm_subcategory) const;
     void ensure_alias_mapping(int taxonomy_id,
                               const std::string& norm_category,
                               const std::string& norm_subcategory);

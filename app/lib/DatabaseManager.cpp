@@ -178,7 +178,6 @@ void DatabaseManager::load_taxonomy_cache() {
             entry.subcategory = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2));
             entry.normalized_category = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 3));
             entry.normalized_subcategory = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 4));
-            entry.frequency = sqlite3_column_int(stmt, 5);
 
             taxonomy_index[entry.id] = taxonomy_entries.size();
             taxonomy_entries.push_back(entry);
@@ -291,45 +290,49 @@ int DatabaseManager::create_taxonomy_entry(const std::string &category,
     sqlite3_bind_text(stmt, 4, norm_subcategory.c_str(), -1, SQLITE_TRANSIENT);
 
     int step_rc = sqlite3_step(stmt);
-    if (step_rc != SQLITE_DONE) {
-        int extended_rc = sqlite3_extended_errcode(db);
-        sqlite3_finalize(stmt);
+    int extended_rc = sqlite3_extended_errcode(db);
+    sqlite3_finalize(stmt);
 
+    if (step_rc != SQLITE_DONE) {
         if (extended_rc == SQLITE_CONSTRAINT_UNIQUE ||
             extended_rc == SQLITE_CONSTRAINT_PRIMARYKEY ||
             extended_rc == SQLITE_CONSTRAINT) {
-            const char *select_sql =
-                "SELECT id FROM category_taxonomy WHERE normalized_category = ? AND normalized_subcategory = ? LIMIT 1;";
-            sqlite3_stmt *select_stmt = nullptr;
-            if (sqlite3_prepare_v2(db, select_sql, -1, &select_stmt, nullptr) == SQLITE_OK) {
-                sqlite3_bind_text(select_stmt, 1, norm_category.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_text(select_stmt, 2, norm_subcategory.c_str(), -1, SQLITE_TRANSIENT);
-                if (sqlite3_step(select_stmt) == SQLITE_ROW) {
-                    int existing_id = sqlite3_column_int(select_stmt, 0);
-                    sqlite3_finalize(select_stmt);
-                    return existing_id;
-                }
-            }
-            if (select_stmt) {
-                sqlite3_finalize(select_stmt);
-            }
-            return -1;
+            return find_existing_taxonomy_id(norm_category, norm_subcategory);
         }
 
         db_log(spdlog::level::err, "Failed to insert taxonomy entry: {}", sqlite3_errmsg(db));
         return -1;
     }
 
-    sqlite3_finalize(stmt);
     int new_id = static_cast<int>(sqlite3_last_insert_rowid(db));
-
-    TaxonomyEntry entry{
-        new_id, category, subcategory, norm_category, norm_subcategory, 0
-    };
+    TaxonomyEntry entry{new_id, category, subcategory, norm_category, norm_subcategory};
     taxonomy_index[new_id] = taxonomy_entries.size();
     taxonomy_entries.push_back(entry);
     canonical_lookup[make_key(norm_category, norm_subcategory)] = new_id;
     return new_id;
+}
+
+int DatabaseManager::find_existing_taxonomy_id(const std::string &norm_category,
+                                               const std::string &norm_subcategory) const {
+    if (!db) return -1;
+
+    const char *select_sql =
+        "SELECT id FROM category_taxonomy WHERE normalized_category = ? AND normalized_subcategory = ? LIMIT 1;";
+    sqlite3_stmt *stmt = nullptr;
+    int existing_id = -1;
+
+    if (sqlite3_prepare_v2(db, select_sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, norm_category.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 2, norm_subcategory.c_str(), -1, SQLITE_TRANSIENT);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            existing_id = sqlite3_column_int(stmt, 0);
+        }
+    }
+
+    if (stmt) {
+        sqlite3_finalize(stmt);
+    }
+    return existing_id;
 }
 
 void DatabaseManager::ensure_alias_mapping(int taxonomy_id,
@@ -569,22 +572,6 @@ void DatabaseManager::increment_taxonomy_frequency(int taxonomy_id) {
         db_log(spdlog::level::err, "Failed to increment taxonomy frequency: {}", sqlite3_errmsg(db));
     }
     sqlite3_finalize(stmt);
-
-    auto it = taxonomy_index.find(taxonomy_id);
-    if (it != taxonomy_index.end() && it->second < taxonomy_entries.size()) {
-        const char *select_sql =
-            "SELECT frequency FROM category_taxonomy WHERE id = ?;";
-        sqlite3_stmt *select_stmt = nullptr;
-        if (sqlite3_prepare_v2(db, select_sql, -1, &select_stmt, nullptr) == SQLITE_OK) {
-            sqlite3_bind_int(select_stmt, 1, taxonomy_id);
-            if (sqlite3_step(select_stmt) == SQLITE_ROW) {
-                taxonomy_entries[it->second].frequency = sqlite3_column_int(select_stmt, 0);
-            }
-        }
-        if (select_stmt) {
-            sqlite3_finalize(select_stmt);
-        }
-    }
 }
 
 std::vector<CategorizedFile>
