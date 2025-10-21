@@ -385,6 +385,80 @@ const DatabaseManager::TaxonomyEntry *DatabaseManager::find_taxonomy_entry(int t
     return &taxonomy_entries[idx];
 }
 
+std::pair<int, double> DatabaseManager::find_fuzzy_match(
+    const std::string& norm_category,
+    const std::string& norm_subcategory) const {
+    if (taxonomy_entries.empty()) {
+        return {-1, 0.0};
+    }
+
+    double best_score = 0.0;
+    int best_id = -1;
+    for (const auto &entry : taxonomy_entries) {
+        double category_score = string_similarity(norm_category, entry.normalized_category);
+        double subcategory_score =
+            string_similarity(norm_subcategory, entry.normalized_subcategory);
+        double combined = (category_score + subcategory_score) / 2.0;
+        if (combined > best_score) {
+            best_score = combined;
+            best_id = entry.id;
+        }
+    }
+
+    if (best_id != -1 && best_score >= kSimilarityThreshold) {
+        return {best_id, best_score};
+    }
+    return {-1, best_score};
+}
+
+int DatabaseManager::resolve_existing_taxonomy(const std::string& key,
+                                               const std::string& norm_category,
+                                               const std::string& norm_subcategory) const {
+    auto alias_it = alias_lookup.find(key);
+    if (alias_it != alias_lookup.end()) {
+        return alias_it->second;
+    }
+
+    auto canonical_it = canonical_lookup.find(key);
+    if (canonical_it != canonical_lookup.end()) {
+        return canonical_it->second;
+    }
+
+    auto [best_id, score] = find_fuzzy_match(norm_category, norm_subcategory);
+    return best_id;
+}
+
+DatabaseManager::ResolvedCategory DatabaseManager::build_resolved_category(
+    int taxonomy_id,
+    const std::string& fallback_category,
+    const std::string& fallback_subcategory,
+    const std::string& norm_category,
+    const std::string& norm_subcategory) {
+
+    ResolvedCategory result{-1, fallback_category, fallback_subcategory};
+
+    if (taxonomy_id == -1) {
+        taxonomy_id = create_taxonomy_entry(fallback_category, fallback_subcategory,
+                                            norm_category, norm_subcategory);
+    }
+
+    if (taxonomy_id != -1) {
+        ensure_alias_mapping(taxonomy_id, norm_category, norm_subcategory);
+        if (const auto *entry = find_taxonomy_entry(taxonomy_id)) {
+            result.taxonomy_id = entry->id;
+            result.category = entry->category;
+            result.subcategory = entry->subcategory;
+        } else {
+            result.taxonomy_id = taxonomy_id;
+        }
+    } else {
+        result.category = fallback_category;
+        result.subcategory = fallback_subcategory;
+    }
+
+    return result;
+}
+
 DatabaseManager::ResolvedCategory
 DatabaseManager::resolve_category(const std::string &category,
                                   const std::string &subcategory) {
@@ -417,59 +491,12 @@ DatabaseManager::resolve_category(const std::string &category,
     std::string norm_subcategory = normalize_label(trimmed_subcategory);
     std::string key = make_key(norm_category, norm_subcategory);
 
-    int taxonomy_id = -1;
-
-    auto alias_it = alias_lookup.find(key);
-    if (alias_it != alias_lookup.end()) {
-        taxonomy_id = alias_it->second;
-    } else {
-        auto canonical_it = canonical_lookup.find(key);
-        if (canonical_it != canonical_lookup.end()) {
-            taxonomy_id = canonical_it->second;
-        }
-    }
-
-    if (taxonomy_id == -1 && !taxonomy_entries.empty()) {
-        double best_score = 0.0;
-        int best_id = -1;
-        for (const auto &entry : taxonomy_entries) {
-            double category_score = string_similarity(norm_category, entry.normalized_category);
-            double subcategory_score =
-                string_similarity(norm_subcategory, entry.normalized_subcategory);
-            double combined = (category_score + subcategory_score) / 2.0;
-            if (combined > best_score) {
-                best_score = combined;
-                best_id = entry.id;
-            }
-        }
-
-        if (best_id != -1 && best_score >= kSimilarityThreshold) {
-            taxonomy_id = best_id;
-        }
-    }
-
-    if (taxonomy_id == -1) {
-        taxonomy_id = create_taxonomy_entry(trimmed_category, trimmed_subcategory,
-                                            norm_category, norm_subcategory);
-    }
-
-    if (taxonomy_id != -1) {
-        ensure_alias_mapping(taxonomy_id, norm_category, norm_subcategory);
-        if (const auto *entry = find_taxonomy_entry(taxonomy_id)) {
-            result.taxonomy_id = entry->id;
-            result.category = entry->category;
-            result.subcategory = entry->subcategory;
-        } else {
-            result.taxonomy_id = taxonomy_id;
-            result.category = trimmed_category;
-            result.subcategory = trimmed_subcategory;
-        }
-    } else {
-        result.category = trimmed_category;
-        result.subcategory = trimmed_subcategory;
-    }
-
-    return result;
+    int taxonomy_id = resolve_existing_taxonomy(key, norm_category, norm_subcategory);
+    return build_resolved_category(taxonomy_id,
+                                   trimmed_category,
+                                   trimmed_subcategory,
+                                   norm_category,
+                                   norm_subcategory);
 }
 
 bool DatabaseManager::insert_or_update_file_with_categorization(

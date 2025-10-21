@@ -52,6 +52,16 @@ private:
     static double string_similarity(const std::string& a, const std::string& b);
     static std::string make_key(const std::string& norm_category,
                                 const std::string& norm_subcategory);
+    std::pair<int, double> find_fuzzy_match(const std::string& norm_category,
+                                            const std::string& norm_subcategory) const;
+    int resolve_existing_taxonomy(const std::string& key,
+                                   const std::string& norm_category,
+                                   const std::string& norm_subcategory) const;
+    ResolvedCategory build_resolved_category(int taxonomy_id,
+                                             const std::string& fallback_category,
+                                             const std::string& fallback_subcategory,
+                                             const std::string& norm_category,
+                                             const std::string& norm_subcategory);
     int create_taxonomy_entry(const std::string& category,
                               const std::string& subcategory,
                               const std::string& norm_category,

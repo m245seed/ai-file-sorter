@@ -250,7 +250,6 @@ int Utils::determine_ngl_cuda() {
         std::memset(prop_buffer, 0, sizeof(prop_buffer));
         if (cudaGetDeviceProperties(prop_buffer, 0) == 0) {
             struct DevicePropShim {
-                char name[256];
                 size_t totalGlobalMem;
             };
             auto *prop = reinterpret_cast<DevicePropShim*>(prop_buffer);
