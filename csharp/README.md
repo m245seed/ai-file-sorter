@@ -31,29 +31,51 @@ dotnet run
 
 ## Publishing
 
+### Using Build Scripts
+
+The easiest way to create executables for all platforms:
+
+**On Linux/macOS:**
+```bash
+./build-all.sh
+```
+
+**On Windows:**
+```cmd
+build-all.bat
+```
+
+These scripts will create self-contained executables in the `publish/` directory for:
+- Windows (x64)
+- Linux (x64)
+- macOS (Intel)
+- macOS (Apple Silicon)
+
+### Manual Publishing
+
 To create a self-contained executable for your platform:
 
 ### Windows
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained
+dotnet publish -c Release -r win-x64 --self-contained -o publish/win-x64
 ```
 
 ### macOS (Intel)
 ```bash
-dotnet publish -c Release -r osx-x64 --self-contained
+dotnet publish -c Release -r osx-x64 --self-contained -o publish/osx-x64
 ```
 
 ### macOS (Apple Silicon)
 ```bash
-dotnet publish -c Release -r osx-arm64 --self-contained
+dotnet publish -c Release -r osx-arm64 --self-contained -o publish/osx-arm64
 ```
 
 ### Linux
 ```bash
-dotnet publish -c Release -r linux-x64 --self-contained
+dotnet publish -c Release -r linux-x64 --self-contained -o publish/linux-x64
 ```
 
-The published application will be in `bin/Release/net9.0/{runtime}/publish/`
+The published application will be in the respective `publish/{runtime}/` directory.
 
 ## Features
 
