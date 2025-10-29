@@ -1,0 +1,102 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AiFileSorter.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="AiFileSorter.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="AI File Sorter"
+        Width="900" Height="700">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+        <!-- Title -->
+        <TextBlock Grid.Row="0" 
+                   Text="AI File Sorter" 
+                   FontSize="24" 
+                   FontWeight="Bold"
+                   Margin="0,0,0,20"/>
+
+        <!-- Directory Selection -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,15">
+            <TextBox Grid.Column="0" 
+                     Text="{Binding SelectedDirectory}"
+                     Watermark="Select directory to analyze..."
+                     Margin="0,0,10,0"/>
+            <Button Grid.Column="1" 
+                    Content="Browse..." 
+                    Command="{Binding BrowseDirectoryCommand}"
+                    Width="100"/>
+        </Grid>
+
+        <!-- Options -->
+        <StackPanel Grid.Row="2" Margin="0,0,0,15">
+            <TextBlock Text="Options:" FontWeight="SemiBold" Margin="0,0,0,10"/>
+            <CheckBox Content="Use subcategories" 
+                      IsChecked="{Binding UseSubcategories}"
+                      Margin="0,0,0,5"/>
+            <CheckBox Content="Categorize files" 
+                      IsChecked="{Binding CategorizeFiles}"
+                      Margin="0,0,0,5"/>
+            <CheckBox Content="Categorize directories" 
+                      IsChecked="{Binding CategorizeDirectories}"
+                      Margin="0,0,0,5"/>
+        </StackPanel>
+
+        <!-- Results List -->
+        <Border Grid.Row="3" 
+                BorderBrush="Gray" 
+                BorderThickness="1" 
+                CornerRadius="4"
+                Margin="0,0,0,15">
+            <DataGrid ItemsSource="{Binding CategorizedFiles}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      GridLinesVisibility="All">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="File Name" 
+                                        Binding="{Binding FileName}" 
+                                        Width="*"/>
+                    <DataGridTextColumn Header="Type" 
+                                        Binding="{Binding Type}" 
+                                        Width="100"/>
+                    <DataGridTextColumn Header="Category" 
+                                        Binding="{Binding Category}" 
+                                        Width="150"/>
+                    <DataGridTextColumn Header="Subcategory" 
+                                        Binding="{Binding Subcategory}" 
+                                        Width="150"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- Action Buttons -->
+        <StackPanel Grid.Row="4" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right"
+                    Margin="0,0,0,10">
+            <Button Content="Analyze" 
+                    Command="{Binding AnalyzeDirectoryCommand}"
+                    IsEnabled="{Binding !IsAnalyzing}"
+                    Width="120"
+                    Margin="0,0,10,0"/>
+            <Button Content="Sort Files" 
+                    Command="{Binding SortFilesCommand}"
+                    IsEnabled="{Binding !IsAnalyzing}"
+                    Width="120"/>
+        </StackPanel>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="5" 
+                Background="#F0F0F0" 
+                Padding="10,5"
+                CornerRadius="4">
+            <TextBlock Text="{Binding StatusMessage}"/>
+        </Border>
+    </Grid>
+</Window>
