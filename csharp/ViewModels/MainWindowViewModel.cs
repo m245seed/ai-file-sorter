@@ -81,9 +81,29 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task BrowseDirectory()
     {
-        // This would open a folder picker dialog in the actual UI
-        // For now, placeholder
-        StatusMessage = "Browse for directory...";
+        try
+        {
+            var dialog = new Avalonia.Controls.OpenFolderDialog
+            {
+                Title = "Select Directory to Analyze"
+            };
+
+            // Note: This requires access to the Window, which would need to be passed in
+            // For now, this is a placeholder that sets a demo path
+            // In a real implementation, you'd get the window reference from the view
+            StatusMessage = "Directory browser not yet fully implemented - please type path manually";
+            
+            // Example of how it would work with proper window reference:
+            // var result = await dialog.ShowAsync(window);
+            // if (!string.IsNullOrEmpty(result))
+            // {
+            //     SelectedDirectory = result;
+            // }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error: {ex.Message}";
+        }
     }
 
     [RelayCommand]

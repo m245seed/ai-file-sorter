@@ -3,7 +3,11 @@
 
 [![Version](https://badgen.net/badge/version/0.9.7/green)](#)
 
-AI File Sorter is a powerful, cross-platform desktop application that automates file organization. Featuring AI integration and a user-friendly GTK-based interface, it categorizes and sorts files and folders based on their names and extensions. The app intelligently assigns categories and, optionally, subcategories, which you can review and edit before confirming. Once approved, the necessary folders are created, and your files are sorted accordingly. The app uses local (LLaMa, Mistral) and remote (ChatGPT 4o-mini) LLMs for this task, depending on your choice.
+AI File Sorter is a powerful, cross-platform desktop application that automates file organization. Featuring AI integration and a user-friendly interface, it categorizes and sorts files and folders based on their names and extensions. The app intelligently assigns categories and, optionally, subcategories, which you can review and edit before confirming. Once approved, the necessary folders are created, and your files are sorted accordingly. The app uses local (LLaMa, Mistral) and remote (ChatGPT 4o-mini) LLMs for this task, depending on your choice.
+
+**Now available in two versions:**
+- **C++ Version** (original): GTK-based UI for Linux, macOS, and Windows (in `app/` directory)
+- **C# Version** (new): Avalonia UI-based for .NET 9.0 (in `csharp/` directory) - [See C# README](csharp/README.md)
 
 [![Download ai-file-sorter](https://a.fsdn.com/con/app/sf-download-button)](https://sourceforge.net/projects/ai-file-sorter/files/latest/download)
 
@@ -12,6 +16,7 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
 ---
 
 - [AI File Sorter](#ai-file-sorter)
+  - [Versions](#versions)
   - [Changelog](#changelog)
     - [[0.9.7] - 2025-10-19](#097---2025-10-19)
     - [[0.9.3] - 2025-09-22](#093---2025-09-22)
@@ -54,6 +59,38 @@ AI File Sorter is a powerful, cross-platform desktop application that automates 
   - [Credits](#credits)
   - [License](#license)
   - [Donation](#donation)
+
+---
+
+## Versions
+
+This project is available in two implementations:
+
+### C# Version (.NET 9 + Avalonia UI)
+
+Located in the `csharp/` directory. Modern cross-platform implementation using:
+- **.NET 9.0**: Modern, high-performance runtime
+- **Avalonia UI 11.3**: Cross-platform XAML-based UI framework
+- **MVVM architecture**: Clean separation of concerns
+- **Full cross-platform support**: Windows, macOS, Linux
+
+**Quick Start:**
+```bash
+cd csharp
+dotnet build
+dotnet run
+```
+
+See [C# README](csharp/README.md) for detailed instructions.
+
+### C++ Version (GTK)
+
+Located in the `app/` directory. Original implementation using:
+- **GTK+3/GTKmm**: Native UI framework
+- **llama.cpp integration**: Full local LLM support with CUDA/Metal acceleration
+- **Mature codebase**: Battle-tested with 7000+ lines of code
+
+See installation instructions below for the C++ version.
 
 ---
 
